@@ -1,0 +1,7 @@
+DEFAULT Linux
+SAY Oka is installing {{ osid }}
+TIMEOUT 5
+
+LABEL Linux
+    KERNEL vmlinuz
+    APPEND initrd=initrd.img inst.repo=http://{{ httpd_ip_ext }}/_repos/{{ install_id }}/repo inst.ks=http://{{ httpd_ip_ext }}/{{ install_id }}/ks.cfg ip=dhcp

@@ -1,0 +1,8 @@
+- name: initiate HD boot
+  hosts: all 
+  vars_files:
+  - osid.yaml
+  - host.yaml
+  - install.yaml
+  gather_facts: false
+  tasks:

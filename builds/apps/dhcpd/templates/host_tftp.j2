@@ -1,0 +1,12 @@
+# START MANAGED BY OKA {{ mac }}
+host {{ host }} {
+  hardware ethernet {{ mac }};
+  fixed-address {{ ip }};
+  next-server {{ tftpd_ip_ext }};
+  if option arch = 00:07 or option arch = 00:09 {
+    filename "{{ install_id }}/efi/{{ shim }}";
+  } else {
+    filename "{{ install_id }}/pxelinux/pxelinux.0";
+  }
+}
+# END MANAGED BY OKA {{ mac }}

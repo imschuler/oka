@@ -1,0 +1,7 @@
+set timeout=1
+menuentry '{{ osid }}' {
+  echo 'Loading linux ...'
+  linuxefi {{ install_id }}/efi/linux install=http://{{ httpd_ip_ext }}/_repos/{{ install_id }}/repo autoyast=http://{{ httpd_ip_ext }}/{{ install_id }}/autoinst.xml ifcfg=eth*=dhcp kexec=3
+  echo 'Loading initrd ...'
+  initrdefi {{ install_id }}/efi/initrd
+}

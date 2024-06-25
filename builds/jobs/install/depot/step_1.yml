@@ -1,0 +1,61 @@
+- name: initiate PXE boot
+  hosts: all 
+  vars_files:
+  - osid.yaml
+  - host.yaml
+  - install.yaml
+  gather_facts: false
+  tasks:
+  - name: Set one-time PXE boot device via redfish
+    community.general.redfish_command:
+      category: Systems
+      command: SetOneTimeBoot
+      bootdevice: Pxe
+      baseuri: "{{ irmc.ip }}"
+      username: "{{ irmc.user }}"
+      password: "{{ irmc.password }}"
+    register: redfish
+    ignore_errors: true
+    delegate_to: localhost
+    when: irmc.ip is defined
+
+  - name: Forced Restart of system 
+    community.general.redfish_command:
+      category: Systems
+      command: PowerForceRestart 
+      baseuri: "{{ irmc.ip }}"
+      username: "{{ irmc.user }}"
+      password: "{{ irmc.password }}"
+    register: restart
+    ignore_errors: true
+    delegate_to: localhost
+    when: irmc.ip is defined and not redfish.failed
+
+  - name: Power on system
+    community.general.redfish_command:
+      category: Systems
+      command: PowerOn
+      baseuri: "{{ irmc.ip }}"
+      username: "{{ irmc.user }}"
+      password: "{{ irmc.password }}"
+    delegate_to: localhost
+    when: irmc.ip is defined and not redfish.failed and restart.failed
+
+  - name: set PXE boot via IPMI
+    community.general.ipmi_boot:
+      name: "{{ irmc.ip }}"
+      user: "{{ irmc.user }}"
+      password: "{{ irmc.password }}"
+      bootdev: network
+      uefiboot: true
+    delegate_to: localhost
+    when: irmc.ip is defined and redfish.failed
+
+  - name: Reboot server via IPMI 
+    community.general.ipmi_power:
+      name: "{{ irmc.ip }}"
+      user: "{{ irmc.user }}"
+      password: "{{ irmc.password }}"
+      state: boot
+    delegate_to: localhost
+    when: irmc.ip is defined and redfish.failed

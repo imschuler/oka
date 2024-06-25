@@ -1,0 +1,55 @@
+- name: final reboot
+  hosts: all
+  vars_files:
+  - subnet.yaml
+  - osid.yaml
+  - host.yaml
+  - install.yaml
+  - access.yaml
+  vars:
+    proxy_env0:
+      https_proxy: "http://{{ proxy_host }}:{{ proxy_port }}"
+    proxy_env: >-
+      {% if proxy_host is defined %}{{ proxy_env0 }}{% endif %}
+  tasks:
+    - name: check /root/oka/issue for install_id
+      lineinfile:
+        dest: /root/oka/issue
+        line: "installed by Oka using install_id : {{ install_id }}"
+      check_mode: yes
+      register: issue
+
+    - name: assert that install_id was in /root/oka/issue
+      assert:
+        that: not issue.changed
+
+    - name: test https and proxy
+      uri:
+        url: https://www.google.de
+        return_content: true
+      environment: "{{ proxy_env }}"
+      register: google
+      retries: 2
+      delay: 2
+
+    - assert:
+        that:
+          - "'Google' in google.content"
+
+    - name: determine full hostname
+      command: hostname -f
+      register: hostname
+
+    - name: create /etc/ansible/facts.d/ dir
+      file:
+        path: /etc/ansible/facts.d/
+        state: directory
+
+    - name: create installation facts
+      template:
+        src: installation.j2
+        dest: /etc/ansible/facts.d/installation.fact
+
+    - name: installation was successful
+      debug:
+        msg: "hostname: {{ hostname.stdout }} DONE"

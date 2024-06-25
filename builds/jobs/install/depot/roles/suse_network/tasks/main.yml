@@ -1,0 +1,42 @@
+---
+# tasks file for suse_network
+- name: create ifcfg files
+  template:
+    src: ifcfg.j2
+    dest: /etc/sysconfig/network/ifcfg-{{ item.name }}
+  loop: "{{ network_connections }}"
+
+- name: create routes file
+  template:
+    src: routes.j2
+    dest: /etc/sysconfig/network/routes
+  when: item.ip.gateway4 is defined
+  loop: "{{ network_connections }}"
+
+- name: configure DNS
+  lineinfile:
+    path: /etc/sysconfig/network/config 
+    regexp: "^NETCONFIG_DNS_STATIC_SEARCHLIST"
+    line: "NETCONFIG_DNS_STATIC_SEARCHLIST={{ item.ip.dns_search }}"
+  when: item.ip.dns_search is defined
+  loop: "{{ network_connections }}"
+
+- name: configure DNS 2
+  lineinfile:
+    path: /etc/sysconfig/network/config 
+    regexp: "^NETCONFIG_DNS_STATIC_SERVERS"
+    line: "NETCONFIG_DNS_STATIC_SERVERS={{ item.ip.dns }}"
+  when: item.ip.dns is defined
+  loop: "{{ network_connections }}"
+
+- name: remove udev rules for PCI addresses in 70-persistent-net.rules
+  lineinfile:
+    path: /etc/udev/rules.d/70-persistent-net.rules
+    regexp: 'KERNELS=='
+    state: absent
+- name: add udev rules for MAC addresses in 70-persistent-net.rules
+  lineinfile:
+    path: /etc/udev/rules.d/70-persistent-net.rules
+    regexp: 'ATTR{address}=="{{ item.mac }}"'
+    line: 'SUBSYSTEM=="net", ACTION=="add", ATTR{address}=="{{ item.mac }}", KERNEL=="eth*", NAME="{{ item.name }}"'
+  loop: "{{ network_connections }}"

@@ -1,0 +1,34 @@
+---
+- name: get https_proxy
+  shell: grep ^HTTPS_PROXY /etc/sysconfig/proxy | sed s'/HTTPS_PROXY=\([^ ]*\).*/\1/' | tr -d '"'
+  register: https_proxy
+
+- name: load br_netfilter on startup
+  file:
+    path: /etc/modules-load.d/k8s.conf
+    state: touch
+- copy:
+    dest: /etc/modules-load.d/k8s.conf
+    content: br_netfilter
+
+- name: sysctl parameter 1
+  sysctl:
+    name: net.ipv4.ip_forward
+    value: '1'
+    sysctl_set: true
+    state: present
+
+- name: create /opt/cni/bin
+  file:
+    path: /opt/cni/bin
+    state: directory
+
+- name: download CNI
+  shell: curl -L "https://github.com/containernetworking/plugins/releases/download/{{ cni_version }}/cni-plugins-linux-{{ arch }}-{{ cni_version }}.tgz" | tar -C /opt/cni/bin -xz
+  environment:
+    - https_proxy: "{{ https_proxy.stdout }}"
+
+- name: download crictl
+  shell: curl -L "https://github.com/kubernetes-sigs/cri-tools/releases/download/{{ crictl_version }}/crictl-{{ crictl_version }}-linux-{{ arch }}.tar.gz" | sudo tar -C /usr/local/bin -xz
+  environment:
+    - https_proxy: "{{ https_proxy.stdout }}"

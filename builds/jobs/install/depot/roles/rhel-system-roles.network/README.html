@@ -1,0 +1,1511 @@
+<h1 id="linux-system-rolesnetwork">linux-system-roles/network</h1>
+
+<h2 id="overview">Overview</h2>
+
+<p>The <code>network</code> role enables users to configure network on the target machines.<br />
+This role can be used to configure:</p>
+
+<ul>
+  <li>Ethernet interfaces</li>
+  <li>Bridge interfaces</li>
+  <li>Bonded interfaces</li>
+  <li>VLAN interfaces</li>
+  <li>MacVLAN interfaces</li>
+  <li>Infiniband interfaces</li>
+  <li>Wireless (WiFi) interfaces</li>
+  <li>IP configuration</li>
+  <li>802.1x authentication</li>
+</ul>
+
+<h2 id="introduction">Introduction</h2>
+
+<p>The  <code>network</code> role supports two providers: <code>nm</code> and <code>initscripts</code>. <code>nm</code> is<br />
+used by default in RHEL7 and <code>initscripts</code> in RHEL6. These providers can be<br />
+configured per host via the <a href="#provider"><code>network_provider</code></a> variable. In<br />
+absence of explicit configuration, it is autodetected based on the<br />
+distribution. However, note that either <code>nm</code> or <code>initscripts</code> is not tied to a certain<br />
+distribution. The <code>network</code> role works everywhere the required API is available.<br />
+This means that <code>nm</code> requires at least NetworkManager’s API version 1.2 available.<br />
+For <code>initscripts</code>, the legacy network service is required as used in Fedora or RHEL.</p>
+
+<p>For each host a list of networking profiles can be configured via the<br />
+<code>network_connections</code> variable.</p>
+
+<ul>
+  <li>
+    <p>For <code>initscripts</code>, profiles correspond to ifcfg files in the<br />
+<code>/etc/sysconfig/network-scripts/</code> directory.</p>
+  </li>
+  <li>
+    <p>For <code>nm</code>, profiles correspond to connection profiles as handled by<br />
+NetworkManager.</p>
+  </li>
+</ul>
+
+<p>For each host the network state configuration can also be applied to the interface<br />
+directly via the <code>network_state</code> variable, and only the <code>nm</code> provider supports using<br />
+the <code>network_state</code> variable.</p>
+
+<p>Note that the <code>network</code> role both operates on the connection profiles of the devices<br />
+(via the <code>network_connections</code> variable) and on devices directly (via the<br />
+<code>network_state</code> variable). When configuring the connection profiles through the role,<br />
+it uses the profile name by default as the interface name. It is also possible to<br />
+create generic profiles, by creating for example a profile with a certain IP<br />
+configuration without activating the profile. To apply the configuration to the actual<br />
+networking interface, use the <code>nmcli</code> commands on the target system.</p>
+
+<p><strong>Warning</strong>: The <code>network</code> role updates or creates all connection profiles on<br />
+the target system as specified in the <code>network_connections</code> variable. Therefore,<br />
+the <code>network</code> role removes options from the specified profiles if the options are<br />
+only present on the system but not in the <code>network_connections</code> variable.<br />
+Exceptions are mentioned below. However, the partial networking configuration can be<br />
+achieved via specifying the network state configuration in the <code>network_state</code><br />
+variable.</p>
+
+<h2 id="variables">Variables</h2>
+
+<p>The <code>network</code> role is configured via variables starting  with  <code>network_</code> as<br />
+the name prefix. List of variables:</p>
+
+<ul>
+  <li><code>network_provider</code> - The <code>network_provider</code> variable allows to set a specific<br />
+provider (<code>nm</code> or <code>initscripts</code>) . Setting it to <code>{{
+network_provider_os_default }}</code>, the provider is set depending on the<br />
+operating system. This is usually <code>nm</code> except for RHEL 6 or CentOS 6 systems.<br />
+Changing the provider for an existing profile is not supported. To switch<br />
+providers, it is recommended to first remove profiles with the old provider<br />
+and then create new profiles with the new provider.</li>
+  <li><code>network_connections</code> - The connection profiles are configured as<br />
+<code>network_connections</code>, which is a list of dictionaries that include specific<br />
+options.</li>
+  <li><code>network_allow_restart</code> - Certain configurations require the role to restart<br />
+network services. For example, if a wireless connection is configured and<br />
+NetworkManager-wifi is not installed, NetworkManager must be restarted prior<br />
+to the connection being configured. Setting this to <code>false</code> will prevent the<br />
+role from restarting network service.</li>
+  <li><code>network_state</code> - The network state settings can be configured in the managed<br />
+host, and the format and the syntax of the configuration should be consistent<br />
+with the <a href="https://nmstate.io/examples.html">nmstate state examples</a> (YAML).</li>
+</ul>
+
+<h2 id="examples-of-variables">Examples of Variables</h2>
+
+<p>Setting the variables</p>
+
+<pre><code class="language-yaml">network_provider: nm
+network_connections:
+  - name: eth0
+    #...
+network_allow_restart: true
+</code></pre>
+
+<pre><code class="language-yaml">network_provider: nm
+network_state:
+  interfaces:
+    - name: eth0
+    #...
+  routes:
+    config:
+      #...
+  dns-resolver:
+    config:
+      #...
+</code></pre>
+
+<h2 id="options">Options</h2>
+
+<p>The <code>network_connections</code> variable is a list of dictionaries that include the<br />
+following options. List of options:</p>
+
+<h3 id="name-usually-required"><code>name</code> (usually required)</h3>
+
+<p>The <code>name</code> option identifies the connection profile to be configured. It is not<br />
+the name of the networking interface for which the profile applies, though we<br />
+can associate the profile with an interface and give them the same name. Note<br />
+that you can have multiple profiles for the same device, but only one profile<br />
+can be active on the device each time. For NetworkManager, a connection can<br />
+only be active at one device each time.</p>
+
+<ul>
+  <li>
+    <p>For <code>NetworkManager</code>, the <code>name</code> option corresponds to the<br />
+<a href="https://developer.gnome.org/NetworkManager/stable/nm-settings.html#nm-settings.property.connection.id"><code>connection.id</code></a><br />
+property option.<br />
+Although NetworkManager supports multiple connections with the same <code>connection.id</code>,<br />
+the <code>network</code> role cannot handle a duplicate <code>name</code>. Specifying a <code>name</code> multiple<br />
+times refers to the same connection profile.</p>
+  </li>
+  <li>
+    <p>For <code>initscripts</code>, the <code>name</code> option determines the ifcfg file name <code>/etc/sysconfig/network-scripts/ifcfg-$NAME</code>.<br />
+Note that the <code>name</code> does not specify the <code>DEVICE</code> but a filename. As a consequence,<br />
+<code>'/'</code> is not a valid character for the <code>name</code>.</p>
+  </li>
+</ul>
+
+<p>You can also use the same connection profile multiple times. Therefore, it is possible<br />
+to create a profile and activate it separately.</p>
+
+<p><strong>Note:</strong> The network role will only change the profiles that are specified in the<br />
+<code>network_connections</code> variable. Therefore, if only the ports of a profile are specified<br />
+to be removed from the controller and the controller is not specified, then the<br />
+controller profile will remain on the system. This can happen, if for example all ports<br />
+are removed from a bond interface.</p>
+
+<p><strong>Note:</strong> To remove all profiles on a system that are not specified in the<br />
+<code>network_connections</code> variable, add an entry without a name and <code>persistent_state:
+absent</code>. This will match and remove all remaining profiles:</p>
+
+<pre><code class="language-yaml">network_connections:
+  - name: eth0  # profiles to keep/configure on the system
+    [...]
+
+  - persistent_state: absent  # remove all other profiles
+</code></pre>
+
+<h3 id="state"><code>state</code></h3>
+
+<p>The <code>state</code> option identifies what is the runtime state of  each connection profile. The<br />
+<code>state</code> option (optional) can be set to the following values:</p>
+
+<ul>
+  <li><code>up</code> -  the connection profile is activated</li>
+  <li><code>down</code> - the connection profile is deactivated</li>
+</ul>
+
+<h4 id="state-up"><code>state: up</code></h4>
+
+<ul>
+  <li>
+    <p>For <code>NetworkManager</code>, this corresponds to <code>nmcli connection id {{name}} up</code>.</p>
+  </li>
+  <li>
+    <p>For <code>initscripts</code>, this corresponds to <code>ifup {{name}}</code>.</p>
+  </li>
+</ul>
+
+<p>When the <code>state</code> option is set to <code>up</code>, you can also specify the <code>wait</code> option (optional):</p>
+
+<ul>
+  <li><code>wait: 0</code> - initiates only the activation, but does not wait until the device is fully<br />
+connected. The connection will be completed in the background, for example after a<br />
+DHCP lease was received.</li>
+  <li><code>wait: &lt;seconds&gt;</code> is a timeout that enables you to decide how long you give the device<br />
+to activate. The default is using a suitable timeout. Note that the <code>wait</code> option is<br />
+only supported by NetworkManager.</li>
+</ul>
+
+<p>Note that <code>state: up</code> always re-activates the profile and possibly changes the<br />
+networking configuration, even if the profile was already active before. As<br />
+a consequence, <code>state: up</code> always changes the system.</p>
+
+<h4 id="state-down"><code>state: down</code></h4>
+
+<ul>
+  <li>
+    <p>For <code>NetworkManager</code>,  it corresponds to <code>nmcli connection id {{name}} down</code>.</p>
+  </li>
+  <li>
+    <p>For <code>initscripts</code>, it corresponds to call <code>ifdown {{name}}</code>.</p>
+  </li>
+</ul>
+
+<p>You can deactivate a connection profile, even if is currently not active. As a<br />
+consequence, <code>state: down</code> always changes the system.</p>
+
+<p>Note that if the <code>state</code> option is unset, the connection profile’s runtime state will<br />
+not be changed.</p>
+
+<h3 id="persistent_state"><code>persistent_state</code></h3>
+
+<p>The <code>persistent_state</code> option identifies if a connection profile is persistent (saved on<br />
+disk). The <code>persistent_state</code> option can be set to the following values:</p>
+
+<h4 id="persistent_state-present-default"><code>persistent_state: present</code> (default)</h4>
+
+<p>Note that if <code>persistent_state</code> is <code>present</code> and the connection profile contains<br />
+the <code>type</code> option, the profile will be created or updated. If the connection profile is<br />
+incomplete (no <code>type</code> option), the behavior is undefined. Also, the <code>present</code> value<br />
+does not directly result in a change in the network configuration. If the <code>state</code> option<br />
+is not set to <code>up</code>, the profile is only created or modified, not activated.</p>
+
+<p>For NetworkManager, the new connection profile is created with the <code>autoconnect</code><br />
+option enabled by default. Therefore, NetworkManager can activate the new<br />
+profile on a currently disconnected device. (<a href="https://bugzilla.redhat.com/show_bug.cgi?id=1401515">rh#1401515</a>).</p>
+
+<h4 id="persistent_state-absent"><code>persistent_state: absent</code></h4>
+
+<p>The <code>absent</code> value ensures that the profile is not present on the<br />
+target host. If a profile with the given <code>name</code> exists, it will be deleted. In this case:</p>
+
+<ul>
+  <li>
+    <p><code>NetworkManager</code> deletes all connection profiles with the corresponding<br />
+<code>connection.id</code>. Deleting a profile usually does not change the current networking<br />
+configuration, unless the profile was currently activated on a device. Deleting the<br />
+currently active connection profile disconnects the device. That makes the device<br />
+eligible to autoconnect another connection (for more details, see<br />
+<a href="https://bugzilla.redhat.com/show_bug.cgi?id=1401515">rh#1401515</a>).</p>
+  </li>
+  <li>
+    <p><code>initscripts</code> deletes the ifcfg file in most cases with no impact on the runtime state<br />
+of the system unless some component is watching the sysconfig directory.</p>
+  </li>
+</ul>
+
+<p><strong>Note</strong>: For profiles that only contain a <code>state</code> option, the <code>network</code> role only activates<br />
+or deactivates the connection without changing its configuration.</p>
+
+<h3 id="type"><code>type</code></h3>
+
+<p>The <code>type</code> option can be set to the following values:</p>
+
+<ul>
+  <li><code>ethernet</code></li>
+  <li><code>bridge</code></li>
+  <li><code>bond</code></li>
+  <li><code>team</code></li>
+  <li><code>vlan</code></li>
+  <li><code>macvlan</code></li>
+  <li><code>infiniband</code></li>
+  <li><code>wireless</code></li>
+</ul>
+
+<h4 id="type-ethernet"><code>type: ethernet</code></h4>
+
+<p>If the type is <code>ethernet</code>, then there can be an extra <code>ethernet</code> dictionary with the following<br />
+items (options): <code>autoneg</code>, <code>speed</code> and <code>duplex</code>, which correspond to the<br />
+settings of the <code>ethtool</code> utility with the same name.</p>
+
+<ul>
+  <li><code>autoneg</code>: <code>true</code> (default) or <code>false</code> [if auto-negotiation is enabled or disabled]</li>
+  <li><code>speed</code>: speed in Mbit/s</li>
+  <li><code>duplex</code>: <code>half</code> or <code>full</code></li>
+</ul>
+
+<p>Note that the <code>speed</code> and <code>duplex</code> link settings are required when autonegotiation is<br />
+disabled (<code>autoneg: false</code>).</p>
+
+<h4 id="type-bridge-type-bond-type-team"><code>type: bridge</code>, <code>type: bond</code>, <code>type: team</code></h4>
+
+<p>The <code>bridge</code>, <code>bond</code>, <code>team</code> device types work similar. Note that <code>team</code> is not<br />
+supported in RHEL6 kernels, and has been deprecated in RHEL 9.</p>
+
+<p>For ports, the <code>port_type</code> and <code>controller</code> properties must be set. Note that ports<br />
+should not have <code>ip</code> settings.</p>
+
+<p>The <code>controller</code> refers to the <code>name</code> of a profile in the Ansible<br />
+playbook. It is neither an interface-name nor a connection-id of<br />
+NetworkManager.</p>
+
+<ul>
+  <li>
+    <p>For NetworkManager, <code>controller</code> will be converted to the <code>connection.uuid</code><br />
+of the corresponding profile.</p>
+  </li>
+  <li>
+    <p>For initscripts, the controller is looked up as the <code>DEVICE</code> from the corresponding<br />
+ifcfg file.</p>
+  </li>
+</ul>
+
+<p>As <code>controller</code> refers to other profiles of the same or another play, the order of the<br />
+<code>connections</code> list matters. Profiles that are referenced by other profiles need to be<br />
+specified first. Also, <code>--check</code> ignores the value of the <code>controller</code> and assumes it<br />
+will be present during a real run. That means, in presence of an invalid <code>controller</code>,<br />
+<code>--check</code> may signal success but the actual play run fails.</p>
+
+<p>If only bringing down the <code>controller</code> profile , then the port profiles will be brought<br />
+down automatically. If bringing down the connection on some or all ports, then the<br />
+controller profile stay active.</p>
+
+<p>The <code>team</code> type uses <code>roundrobin</code> as the <code>runner</code> configuration. No further<br />
+configuration is supported at the moment.</p>
+
+<h4 id="type-vlan"><code>type: vlan</code></h4>
+
+<p>Similar to <code>controller</code>, the <code>parent</code> references the connection profile in the ansible<br />
+role.</p>
+
+<h4 id="type-macvlan"><code>type: macvlan</code></h4>
+
+<p>Similar to <code>controller</code> and <code>vlan</code>, the <code>parent</code> references the connection profile in<br />
+the ansible role.</p>
+
+<h4 id="type-infiniband"><code>type: infiniband</code></h4>
+
+<p>For the infiniband connection, currently it is only supported for the nm provider, and<br />
+the following options are supported:</p>
+
+<ul>
+  <li><code>p_key</code>: The infiniband P_Key to use for the device. When it is not specified, then<br />
+the connection is created on the physical infiniband fabrics. Otherwise, it is a<br />
+16-bit unsigned integer and the ipoib (IP over Infiniband) connection will be<br />
+created, the high bit should be set if it is a “full membership” P_Key. The special<br />
+<code>p_key</code> values 0x0000 and 0x8000 are invalid as kernel does not support them.</li>
+  <li><code>transport_mode</code>: The ipoib (IP over Infiniband) connection operation mode. The<br />
+possible modes are <code>datagram</code> (default) and <code>connected</code>.</li>
+</ul>
+
+<p><strong>Note:</strong> If the <code>p_key</code> is specified , then the <code>interface_name</code> must be unset.</p>
+
+<h4 id="type-wireless"><code>type: wireless</code></h4>
+
+<p>The <code>wireless</code> type supports WPA-PSK (password) authentication, WPA-EAP (802.1x)<br />
+authentication, WPA3-Personal SAE (password) authentication and Enhanced Open (OWE).</p>
+
+<p><code>nm</code> (NetworkManager) is the only supported <code>network_provider</code> for this type.</p>
+
+<p>If WPA-EAP is used, ieee802_1x settings must be defined in the<br />
+<a href="#-`ieee802_1x`">ieee802_1x</a> option.</p>
+
+<p>The following options are supported:</p>
+
+<ul>
+  <li><code>ssid</code>: the SSID of the wireless network (required)</li>
+  <li>
+    <p><code>key_mgmt</code> (required)</p>
+
+    <p>Any key from following key list:</p>
+    <ul>
+      <li><code>owe</code></li>
+      <li><code>sae</code></li>
+      <li><code>wpa-eap</code></li>
+      <li><code>wpa-psk</code></li>
+    </ul>
+  </li>
+  <li><code>password</code>: password for the network (required if <code>wpa-psk</code> or <code>sae</code> is used)</li>
+</ul>
+
+<h3 id="autoconnect"><code>autoconnect</code></h3>
+
+<p>By default, profiles are created with autoconnect enabled.</p>
+
+<ul>
+  <li>
+    <p>For <code>NetworkManager</code>, this corresponds to the <code>connection.autoconnect</code> property.</p>
+  </li>
+  <li>
+    <p>For <code>initscripts</code>, this corresponds to the <code>ONBOOT</code> property.</p>
+  </li>
+</ul>
+
+<h3 id="mac"><code>mac</code></h3>
+
+<p>The <code>mac</code> address is optional and restricts the profile to be usable only on<br />
+devices with the given MAC address. <code>mac</code> is only allowed for <code>type</code><br />
+<code>ethernet</code> or <code>infiniband</code> to match a non-virtual device with the<br />
+profile. The value of the <code>mac</code> address needs to be specified in hexadecimal notation<br />
+using colons (for example: <code>mac: "00:00:5e:00:53:5d"</code>). To avoid YAML parsing mac<br />
+addresses as integers in sexagesimal (base 60) notation (see<br />
+<a href="https://yaml.org/spec/1.1/#id858600">https://yaml.org/spec/1.1/#id858600</a>), it is recommended to always quote the value<br />
+with double quotes and sometimes it is necessary.</p>
+
+<ul>
+  <li>
+    <p>For <code>NetworkManager</code>, <code>mac</code> is the permanent MAC address, <code>ethernet.mac-address</code>.</p>
+  </li>
+  <li>
+    <p>For <code>initscripts</code>,  <code>mac</code> is the currently configured MAC address of the device (<code>HWADDR</code>).</p>
+  </li>
+</ul>
+
+<h3 id="cloned_mac"><code>cloned_mac</code></h3>
+
+<p>The <code>cloned_mac</code> address is optional and allow to specify the strategy to get the default<br />
+mac or to set your own mac. The value of the <code>cloned_mac</code> address needs to be specified in<br />
+hexadecimal notation like <code>mac</code> property. Besides explicitly specifying the value as a MAC<br />
+address with hexadecimal notation, the following special values are also supported:</p>
+
+<ul>
+  <li><code>default</code>: honor the default behavior in NetworkManager</li>
+  <li><code>permanent</code>: use the permanent MAC address of the device</li>
+  <li><code>preserve</code>: don’t change the MAC address of the device upon activation</li>
+  <li><code>random</code>: generate a randomized value upon each connect</li>
+  <li><code>stable</code>: generate a stable, hashed MAC address</li>
+</ul>
+
+<h3 id="mtu"><code>mtu</code></h3>
+
+<p>The <code>mtu</code> option denotes the maximum transmission unit for the profile’s<br />
+device. The maximum value depends on the device. For virtual devices, the<br />
+maximum value of the <code>mtu</code> option depends on the underlying device.</p>
+
+<h3 id="interface_name"><code>interface_name</code></h3>
+
+<p>For the <code>ethernet</code> and <code>infiniband</code>  types, the <code>interface_name</code> option restricts the<br />
+profile to the given interface by name. This argument is optional and by default the<br />
+profile name is used unless a mac address is specified using the <code>mac</code> key. Specifying<br />
+an empty string (<code>""</code>) means that the profile is not restricted to a network interface.</p>
+
+<p><strong>Note:</strong> With <a href="https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Linux/7/html/Networking_Guide/ch-Consistent_Network_Device_Naming.html">persistent interface naming</a>,<br />
+the interface is predictable based on the hardware configuration.<br />
+Otherwise, the <code>mac</code> address might be an option.</p>
+
+<p>For virtual interface types such as bridges, the <code>interface_name</code> is the name of the created<br />
+interface. In case of a missing <code>interface_name</code>, the <code>name</code> of the profile name is used.</p>
+
+<p><strong>Note:</strong> The <code>name</code> (the profile name) and the <code>interface_name</code> (the device name) may be<br />
+different or the profile may not be tied to an interface at all.</p>
+
+<h3 id="match"><code>match</code></h3>
+
+<p>Settings to specify devices or systems matching a profile. Currently, only the <code>path</code><br />
+setting is implemented.</p>
+
+<p>The settings support a list of patterns which support the following modifiers and<br />
+wildcards:</p>
+
+<p><strong>Special modifiers for <code>match</code> settings:</strong></p>
+
+<ul>
+  <li>
+    <p><code>|</code>, the element is an alternative, the match evaluates to be true if at least one of<br />
+the alternatives matches (logical OR). By default, an element is an alternative.<br />
+This means that an element <code>foo</code> behaves the same as <code>|foo</code></p>
+  </li>
+  <li>
+    <p><code>&amp;</code>, the element is mandatory, the match evaluates to be true if all the element<br />
+matches (logical AND)</p>
+  </li>
+  <li>
+    <p><code>!</code>, an element can also be inverted with exclamation mark (<code>!</code>) between the pipe<br />
+symbol (or the ampersand) and before the pattern. Note that <code>!foo</code> is a shortcut for<br />
+the mandatory match <code>&amp;!foo</code></p>
+  </li>
+  <li>
+    <p><code>\</code>, a backslash can be used at the beginning of the element (after the optional<br />
+special characters) to escape the start of the pattern. For example, <code>&amp;\!a</code> is an<br />
+mandatory match for literally <code>!a</code></p>
+  </li>
+</ul>
+
+<p><strong>Wildcard patterns for <code>match</code> Settings:</strong><br />
+In general these work like shell globs.</p>
+
+<ul>
+  <li><code>*</code>, matches zero or more of any character</li>
+  <li><code>?</code>, matches any single character</li>
+  <li><code>[fo]</code> - matches any single <code>f</code> or <code>o</code> character - also supports ranges - <code>[0-9]</code><br />
+will match any single digit character</li>
+</ul>
+
+<h4 id="path"><code>path</code></h4>
+
+<p>The <code>path</code> setting is a list of patterns to match against the <code>ID_PATH</code> udev property<br />
+of devices. The <code>ID_PATH</code> udev property represents the persistent path of a device. It<br />
+consists of a subsystem string (pci, usb, platform, etc.) and a subsystem-specific<br />
+identifier. The <code>ID_PATH</code> of a device can be obtained with the command<br />
+<code>udevadm info /sys/class/net/$dev | grep ID_PATH=</code> or by looking at the <code>path</code> property<br />
+exported by NetworkManager (<code>nmcli -f general.path device show $dev</code>). The <code>path</code><br />
+setting is optional and restricts the profile to be activated only on devices with a<br />
+matching <code>ID_PATH</code>. The <code>path</code> setting is only supported for ethernet or infiniband<br />
+profiles. It supports modifiers and wildcards as described for match settings.</p>
+
+<h3 id="zone"><code>zone</code></h3>
+
+<p>The <code>zone</code> option sets the firewalld zone for the interface.</p>
+
+<p>Ports to the bridge, bond or team devices cannot specify a zone.</p>
+
+<h3 id="ip"><code>ip</code></h3>
+
+<p>The IP configuration supports the following options:</p>
+
+<ul>
+  <li>
+    <p><code>address</code></p>
+
+    <p>Manual addressing can be specified via a list of addresses under the <code>address</code> option.</p>
+  </li>
+  <li>
+    <p><code>auto_gateway</code></p>
+
+    <p>If enabled, a default route will be configured using the default gateway. If disabled,<br />
+  the default route will be removed.</p>
+
+    <p>If this variable is not specified, the role will use the default behavior of the<br />
+  <code>network_provider</code> selected.</p>
+
+    <p>Setting this option to <code>false</code> is equivalent to:</p>
+    <ul>
+      <li><code>DEFROUTE = no</code> in initscripts, or</li>
+      <li><code>ipv4.never-default/ipv6.never-default yes</code> in nmcli</li>
+    </ul>
+  </li>
+  <li>
+    <p><code>dhcp4</code>, <code>auto6</code>, and <code>ipv6_disabled</code></p>
+
+    <p>Also, manual addressing can be specified by setting either <code>dhcp4</code> or <code>auto6</code>.<br />
+  The <code>dhcp4</code> key is  for DHCPv4 and <code>auto6</code>  for  StateLess Address Auto Configuration<br />
+  (SLAAC). Note that the <code>dhcp4</code> and <code>auto6</code> keys can be omitted and the default key<br />
+  depends on the presence of manual addresses. <code>ipv6_disabled</code> can be set to disable<br />
+  ipv6 for the connection.</p>
+  </li>
+  <li>
+    <p><code>dhcp4_send_hostname</code></p>
+
+    <p>If <code>dhcp4</code> is enabled, it can be configured whether the DHCPv4 request includes<br />
+  the hostname via the <code>dhcp4_send_hostname</code> option. Note that <code>dhcp4_send_hostname</code><br />
+  is only supported by the <code>nm</code> provider and corresponds to<br />
+  <a href="https://developer.gnome.org/NetworkManager/stable/nm-settings.html#nm-settings.property.ipv4.dhcp-send-hostname"><code>ipv4.dhcp-send-hostname</code></a><br />
+  property.</p>
+  </li>
+  <li>
+    <p><code>dns</code></p>
+
+    <p>Manual DNS configuration can be specified via a list of addresses given in the<br />
+  <code>dns</code> option.</p>
+  </li>
+  <li>
+    <p><code>dns_search</code></p>
+
+    <p>Manual DNS configuration can be specified via a list of domains to search given in<br />
+  the <code>dns_search</code> option.</p>
+  </li>
+  <li>
+    <p><code>dns_options</code></p>
+
+    <p><code>dns_options</code> is only supported for the NetworkManager provider. Manual DNS<br />
+  configuration via a list of DNS options can be given in the <code>dns_options</code>. The list<br />
+  of supported DNS options for IPv4 nameservers is described in<br />
+  <a href="https://man7.org/linux/man-pages/man5/resolv.conf.5.html">man 5 resolv.conf</a>.<br />
+  Currently, the list of supported DNS options is:</p>
+    <ul>
+      <li><code>attempts:n</code></li>
+      <li><code>debug</code></li>
+      <li><code>edns0</code></li>
+      <li><code>inet6</code></li>
+      <li><code>ip6-bytestring</code></li>
+      <li><code>ip6-dotint</code></li>
+      <li><code>ndots:n</code></li>
+      <li><code>no-aaaa</code></li>
+      <li><code>no-check-names</code></li>
+      <li><code>no-ip6-dotint</code></li>
+      <li><code>no-reload</code></li>
+      <li><code>no-tld-query</code></li>
+      <li><code>rotate</code></li>
+      <li><code>single-request</code></li>
+      <li><code>single-request-reopen</code></li>
+      <li><code>timeout:n</code></li>
+      <li><code>trust-ad</code></li>
+      <li><code>use-vc</code></li>
+    </ul>
+
+    <p><strong>Note:</strong> The “trust-ad” setting is only honored if the profile contributes name<br />
+  servers to resolv.conf, and if all contributing profiles have “trust-ad” enabled.<br />
+  When using a caching DNS plugin (dnsmasq or systemd-resolved in NetworkManager.conf)<br />
+  then “edns0” and “trust-ad” are automatically added.</p>
+  </li>
+  <li>
+    <p><code>dns_priority</code></p>
+
+    <p>DNS servers priority. The relative priority for DNS servers specified by this<br />
+  setting. The default value is 0, a lower numerical value has higher priority.<br />
+  The valid value of <code>dns_priority</code> ranges from -2147483648 to 2147483647. Negative<br />
+  values have the special effect of excluding other configurations with a greater<br />
+  numerical priority value; so in presence of at least one negative priority, only<br />
+  DNS servers from connections with the lowest priority value will be used.</p>
+  </li>
+  <li>
+    <p><code>gateway4</code> and <code>gateway6</code></p>
+
+    <p>The default gateway for IPv4 (<code>gateway4</code>) or IPv6 (<code>gateway6</code>) packets.</p>
+  </li>
+  <li>
+    <p><code>ipv4_ignore_auto_dns</code> and <code>ipv6_ignore_auto_dns</code></p>
+
+    <p>If enabled, the automatically configured name servers and search domains (via<br />
+  DHCPv4, DHCPv6, modem etc) for IPv4 or IPv6 are ignored, only the name servers and<br />
+  search domains specified in <code>dns</code> and <code>dns_search</code> properties are used. The<br />
+  settings are distinguished by the address families. The variables are not supported<br />
+  by initscripts provider.</p>
+
+    <p>If the variables are not specified, the role will use the default behavior of nm<br />
+  provider.</p>
+  </li>
+  <li>
+    <p><code>route_metric4</code> and <code>route_metric6</code></p>
+
+    <p>For <code>NetworkManager</code>, <code>route_metric4</code> and <code>route_metric6</code> corresponds to the<br />
+  <a href="https://developer.gnome.org/NetworkManager/stable/nm-settings.html#nm-settings.property.ipv4.route-metric"><code>ipv4.route-metric</code></a><br />
+  and<br />
+  <a href="https://developer.gnome.org/NetworkManager/stable/nm-settings.html#nm-settings.property.ipv6.route-metric"><code>ipv6.route-metric</code></a><br />
+  properties, respectively. If specified, it determines the route metric for DHCP<br />
+  assigned routes and the default route, and thus the priority for multiple<br />
+  interfaces. For <code>initscripts</code>, <code>route_metric4</code> sets the metric for the default<br />
+  route and <code>route_metric6</code> is not supported.</p>
+  </li>
+  <li>
+    <p><code>route</code></p>
+
+    <p>Static route configuration can be specified via a list of routes given in the<br />
+  <code>route</code> option. The default value is an empty list. Each route is a dictionary with<br />
+  the following entries: <code>network</code>, <code>prefix</code>, <code>gateway</code>, <code>metric</code> and <code>table</code>.<br />
+  <code>network</code> and <code>prefix</code> specify the destination network. <code>table</code> supports both the<br />
+  numeric table and named table. In order to specify the named table, the users have<br />
+  to ensure the named table is properly defined in <code>/etc/iproute2/rt_tables</code> or<br />
+  <code>/etc/iproute2/rt_tables.d/*.conf</code>.<br />
+  Note that Classless inter-domain routing (CIDR) notation or network mask notation<br />
+  are not supported yet.</p>
+  </li>
+  <li>
+    <p><code>routing_rule</code></p>
+
+    <p>The policy routing rules can be specified via a list of rules given in the<br />
+  <code>routing_rule</code> option, which allow routing the packets on other packet fields<br />
+  except for destination address. The default value is a an empty list. Each rule is<br />
+  a dictionary with the following entries:</p>
+    <ul>
+      <li><code>priority</code> -<br />
+ The priority of the rule. A valid priority ranges from 0 to 4294967295. Higher<br />
+ number means lower priority.</li>
+      <li><code>action</code> -<br />
+ The action of the rule. The possible values are <code>to-table</code> (default),<br />
+ <code>blackhole</code>, <code>prohibit</code>, <code>unreachable</code>.</li>
+      <li><code>dport</code>-<br />
+ The range of the destination port (e.g. <code>1000 - 2000</code>). A valid dport value for<br />
+ both start and end ranges from 0 to 65534. And the start cannot be greater than<br />
+ the end.</li>
+      <li><code>family</code> -<br />
+ The IP family of the rule. The possible values are <code>ipv4</code> and <code>ipv6</code>.</li>
+      <li><code>from</code> -<br />
+ The source address of the packet to match (e.g. <code>192.168.100.58/24</code>).</li>
+      <li><code>fwmark</code> -<br />
+ The fwmark value of the packet to match.</li>
+      <li><code>fwmask</code> -<br />
+ The fwmask value of the packet to match.</li>
+      <li><code>iif</code> -<br />
+ Select the incoming interface name to match.</li>
+      <li><code>invert</code> -<br />
+ Invert the selected match of the rule. The possible values are boolean values<br />
+ <code>true</code> and <code>false</code> (default). If the value is <code>true</code>, this is equivalent to match<br />
+ any packet that not satisfying selected match of the rule.</li>
+      <li><code>ipproto</code> -<br />
+ Select the IP protocol value to match, the valid value ranges from 1 to 255.</li>
+      <li><code>oif</code> -<br />
+ Select the outgoing interface name to match.</li>
+      <li><code>sport</code> -<br />
+ The range of the source port (e.g. <code>1000 - 2000</code>). A valid sport value for both<br />
+ start and end ranges from 0 to 65534. And the start cannot be greater than the<br />
+ end.</li>
+      <li><code>suppress_prefixlength</code> -<br />
+ Reject routing decisions that have a prefix length of the specified or less.</li>
+      <li><code>table</code> -<br />
+ The route table to look up for the <code>to-table</code> action. <code>table</code> supports both the<br />
+ numeric table and named table. In order to specify the named table, the users<br />
+ have to ensure the named table is properly defined in <code>/etc/iproute2/rt_tables</code><br />
+ or <code>/etc/iproute2/rt_tables.d/*.conf</code>.</li>
+      <li><code>to</code> -<br />
+ The destination address of the packet to match (e.g. <code>192.168.100.58/24</code>).</li>
+      <li><code>tos</code> -<br />
+ Select the tos value to match.</li>
+      <li><code>uid</code> -<br />
+ The range of the uid to match (e.g. <code>1000 - 2000</code>). A valid uid value for both<br />
+ start and end ranges from 0 to 4294967295. And the start cannot be greater than<br />
+ the end.</li>
+    </ul>
+  </li>
+  <li>
+    <p><code>route_append_only</code></p>
+
+    <p>The <code>route_append_only</code> option allows only to add new routes to the<br />
+  existing routes on the system.</p>
+
+    <p>If the <code>route_append_only</code> boolean option is set to <code>true</code>, the specified routes are<br />
+  appended to the existing routes. If <code>route_append_only</code> is set to <code>false</code> (default),<br />
+  the current routes are replaced. Note that setting <code>route_append_only</code> to <code>true</code><br />
+  without setting <code>route</code> has the effect of preserving the current static routes.</p>
+  </li>
+  <li>
+    <p><code>rule_append_only</code></p>
+
+    <p>The <code>rule_append_only</code> boolean option allows to preserve the current routing rules.<br />
+  Note that specifying routing rules is not supported yet.</p>
+  </li>
+</ul>
+
+<p><strong>Note:</strong> When <code>route_append_only</code> or <code>rule_append_only</code> is not specified, the network<br />
+role deletes the current routes or routing rules.</p>
+
+<p><strong>Note:</strong> Ports to the bridge, bond or team devices cannot specify <code>ip</code> settings.</p>
+
+<h3 id="ethtool"><code>ethtool</code></h3>
+
+<p>The ethtool settings allow to enable or disable various features. The names<br />
+correspond to the names used by the <code>ethtool</code> utility. Depending on the actual<br />
+kernel and device, changing some options might not be supported.</p>
+
+<p>The ethtool configuration supports the following options:</p>
+
+<ul>
+  <li>
+    <p><code>ring</code></p>
+
+    <p>Changes the <code>rx</code>/<code>tx</code> <code>ring</code> parameters of the specified network device. The list<br />
+  of supported <code>ring</code> parameters is:</p>
+    <ul>
+      <li><code>rx</code> - Changes the number of ring entries for the Rx ring.</li>
+      <li><code>rx-jumbo</code> - Changes the number of ring entries for the Rx Jumbo ring.</li>
+      <li><code>rx-mini</code> - Changes the number of ring entries for the Rx Mini ring.</li>
+      <li><code>tx</code> - Changes the number of ring entries for the Tx ring.</li>
+    </ul>
+  </li>
+</ul>
+
+<pre><code class="language-yaml">  ethtool:
+    features:
+      esp_hw_offload: true|false  # optional
+      esp_tx_csum_hw_offload: true|false  # optional
+      fcoe_mtu: true|false  # optional
+      gro: true|false  # optional
+      gso: true|false  # optional
+      highdma: true|false  # optional
+      hw_tc_offload: true|false  # optional
+      l2_fwd_offload: true|false  # optional
+      loopback: true|false  # optional
+      lro: true|false  # optional
+      ntuple: true|false  # optional
+      rx: true|false  # optional
+      rx_all: true|false  # optional
+      rx_fcs: true|false  # optional
+      rx_gro_hw: true|false  # optional
+      rx_udp_tunnel_port_offload: true|false  # optional
+      rx_vlan_filter: true|false  # optional
+      rx_vlan_stag_filter: true|false  # optional
+      rx_vlan_stag_hw_parse: true|false  # optional
+      rxhash: true|false  # optional
+      rxvlan: true|false  # optional
+      sg: true|false  # optional
+      tls_hw_record: true|false  # optional
+      tls_hw_tx_offload: true|false  # optional
+      tso: true|false  # optional
+      tx: true|false  # optional
+      tx_checksum_fcoe_crc: true|false  # optional
+      tx_checksum_ip_generic: true|false  # optional
+      tx_checksum_ipv4: true|false  # optional
+      tx_checksum_ipv6: true|false  # optional
+      tx_checksum_sctp: true|false  # optional
+      tx_esp_segmentation: true|false  # optional
+      tx_fcoe_segmentation: true|false  # optional
+      tx_gre_csum_segmentation: true|false  # optional
+      tx_gre_segmentation: true|false  # optional
+      tx_gso_partial: true|false  # optional
+      tx_gso_robust: true|false  # optional
+      tx_ipxip4_segmentation: true|false  # optional
+      tx_ipxip6_segmentation: true|false  # optional
+      tx_nocache_copy: true|false  # optional
+      tx_scatter_gather: true|false  # optional
+      tx_scatter_gather_fraglist: true|false  # optional
+      tx_sctp_segmentation: true|false  # optional
+      tx_tcp_ecn_segmentation: true|false  # optional
+      tx_tcp_mangleid_segmentation: true|false  # optional
+      tx_tcp_segmentation: true|false  # optional
+      tx_tcp6_segmentation: true|false  # optional
+      tx_udp_segmentation: true|false  # optional
+      tx_udp_tnl_csum_segmentation: true|false  # optional
+      tx_udp_tnl_segmentation: true|false  # optional
+      tx_vlan_stag_hw_insert: true|false  # optional
+      txvlan: true|false  # optional
+    coalesce:
+      adaptive_rx: true|false  # optional
+      adaptive_tx: true|false  # optional
+      pkt_rate_high: 0  # optional mininum=0 maximum=0xffffffff
+      pkt_rate_low: 0  # optional mininum=0 maximum=0xffffffff
+      rx_frames: 0  # optional mininum=0 maximum=0xffffffff
+      rx_frames_high: 0  # optional mininum=0 maximum=0xffffffff
+      rx_frames_irq: 0  # optional mininum=0 maximum=0xffffffff
+      rx_frames_low: 0  # optional mininum=0 maximum=0xffffffff
+      rx_usecs: 0  # optional mininum=0 maximum=0xffffffff
+      rx_usecs_high: 0  # optional mininum=0 maximum=0xffffffff
+      rx_usecs_irq: 0  # optional mininum=0 maximum=0xffffffff
+      rx_usecs_low: 0  # optional mininum=0 maximum=0xffffffff
+      sample_interval: 0  # optional mininum=0 maximum=0xffffffff
+      stats_block_usecs: 0  # optional mininum=0 maximum=0xffffffff
+      tx_frames: 0  # optional mininum=0 maximum=0xffffffff
+      tx_frames_high: 0  # optional mininum=0 maximum=0xffffffff
+      tx_frames_irq: 0  # optional mininum=0 maximum=0xffffffff
+      tx_frames_low: 0  # optional mininum=0 maximum=0xffffffff
+      tx_usecs: 0  # optional mininum=0 maximum=0xffffffff
+      tx_usecs_high: 0  # optional mininum=0 maximum=0xffffffff
+      tx_usecs_irq: 0  # optional mininum=0 maximum=0xffffffff
+      tx_usecs_low: 0  # optional mininum=0 maximum=0xffffffff
+    ring:
+      rx: 0  # optional mininum=0 maximum=0xffffffff
+      rx_jumbo: 0  # optional mininum=0 maximum=0xffffffff
+      rx_mini: 0  # optional mininum=0 maximum=0xffffffff
+      tx: 0  # optional mininum=0 maximum=0xffffffff
+</code></pre>
+
+<h3 id="ieee802_1x"><code>ieee802_1x</code></h3>
+
+<p>Configures 802.1x authentication for an interface.</p>
+
+<p>Currently, NetworkManager is the only supported provider and EAP-TLS is the only<br />
+supported EAP method.</p>
+
+<p>SSL certificates and keys must be deployed on the host prior to running the role.</p>
+
+<ul>
+  <li>
+    <p><code>eap</code></p>
+
+    <p>The allowed EAP method to be used when authenticating to the network with 802.1x.</p>
+
+    <p>Currently, <code>tls</code> is the default and the only accepted value.</p>
+  </li>
+  <li>
+    <p><code>identity</code> (required)</p>
+
+    <p>Identity string for EAP authentication methods.</p>
+  </li>
+  <li>
+    <p><code>private_key</code> (required)</p>
+
+    <p>Absolute path to the client’s PEM or PKCS#12 encoded private key used for 802.1x<br />
+  authentication.</p>
+  </li>
+  <li>
+    <p><code>private_key_password</code></p>
+
+    <p>Password to the private key specified in <code>private_key</code>.</p>
+  </li>
+  <li>
+    <p><code>private_key_password_flags</code></p>
+
+    <p>List of flags to configure how the private key password is managed.</p>
+
+    <p>Multiple flags may be specified.</p>
+
+    <p>Valid flags are:</p>
+    <ul>
+      <li><code>none</code></li>
+      <li><code>agent-owned</code></li>
+      <li><code>not-saved</code></li>
+      <li><code>not-required</code></li>
+    </ul>
+
+    <p>See NetworkManager documentation on “Secret flag types” more details (<code>man 5
+  nm-settings</code>).</p>
+  </li>
+  <li>
+    <p><code>client_cert</code> (required)</p>
+
+    <p>Absolute path to the client’s PEM encoded certificate used for 802.1x<br />
+  authentication.</p>
+  </li>
+  <li>
+    <p><code>ca_cert</code></p>
+
+    <p>Absolute path to the PEM encoded certificate authority used to verify the EAP<br />
+  server.</p>
+  </li>
+  <li>
+    <p><code>ca_path</code></p>
+
+    <p>Absolute path to directory containing additional pem encoded ca certificates used to<br />
+  verify the EAP server. Can be used instead of or in addition to ca_cert. Cannot be<br />
+  used if system_ca_certs is enabled.</p>
+  </li>
+  <li>
+    <p><code>system_ca_certs</code></p>
+
+    <p>If set to <code>true</code>, NetworkManager will use the system’s trusted ca<br />
+  certificates to verify the EAP server.</p>
+  </li>
+  <li>
+    <p><code>domain_suffix_match</code></p>
+
+    <p>If set, NetworkManager will ensure the domain name of the EAP server certificate<br />
+  matches this string.</p>
+  </li>
+</ul>
+
+<h3 id="bond"><code>bond</code></h3>
+
+<p>The <code>bond</code> setting configures the options of bonded interfaces (type <code>bond</code>).<br />
+See the <a href="https://www.kernel.org/doc/Documentation/networking/bonding.txt">kernel documentation for<br />
+bonding</a> or<br />
+your distribution <code>nmcli</code> documentation for valid values. It supports the<br />
+following options:</p>
+
+<ul>
+  <li>
+    <p><code>mode</code></p>
+
+    <p>Bonding mode. The possible values are <code>balance-rr</code> (default), <code>active-backup</code>,<br />
+  <code>balance-xor</code>, <code>broadcast</code>, <code>802.3ad</code>, <code>balance-tlb</code>, or <code>balance-alb</code>.</p>
+  </li>
+  <li>
+    <p><code>ad_actor_sys_prio</code></p>
+
+    <p>In <code>802.3ad</code> bonding mode, this specifies the system priority. The valid range is<br />
+  1 - 65535.</p>
+  </li>
+  <li>
+    <p><code>ad_actor_system</code></p>
+
+    <p>In <code>802.3ad</code> bonding mode, this specifies the system mac-address for the actor in<br />
+  protocol packet exchanges (LACPDUs).</p>
+  </li>
+  <li>
+    <p><code>ad_select</code></p>
+
+    <p>This option specifies the 802.3ad aggregation selection logic to use.  The possible<br />
+  values are: <code>stable</code>, <code>bandwidth</code>, <code>count</code>.</p>
+  </li>
+  <li>
+    <p><code>ad_user_port_key</code></p>
+
+    <p>In <code>802.3ad</code> bonding mode, this defines the upper 10 bits of the port key. The<br />
+  allowed range for the value is 0 - 1023.</p>
+  </li>
+  <li>
+    <p><code>all_ports_active</code></p>
+
+    <p><code>all_slaves_active</code> <!--- wokeignore:rule=slave ---> in kernel and NetworkManager.<br />
+  The boolean value <code>false</code> drops the duplicate frames (received on inactive ports)<br />
+  and the boolean value <code>true</code> delivers the duplicate frames.</p>
+  </li>
+  <li>
+    <p><code>arp_all_targets</code></p>
+
+    <p>This option specifies the quantity of arp_ip_targets that must be reachable in<br />
+  order for the ARP monitor to consider a port as being up. The possible values are<br />
+  <code>any</code> or <code>all</code>.</p>
+  </li>
+  <li>
+    <p><code>arp_interval</code></p>
+
+    <p>This option specifies the ARP link monitoring frequency in milliseconds. A value of<br />
+  0 disables ARP monitoring.</p>
+  </li>
+  <li>
+    <p><code>arp_validate</code></p>
+
+    <p>In any mode that supports arp monitoring, this option specifies whether or not ARP<br />
+  probes and replies should be validated. Or for link monitoring purposes, whether<br />
+  non-ARP traffic should be filtered (disregarded). The possible values are: <code>none</code>,<br />
+  <code>active</code>, <code>backup</code>, <code>all</code>, <code>filter</code>, <code>filter_active</code>, <code>filter_backup</code>.</p>
+  </li>
+  <li>
+    <p><code>arp_ip_target</code></p>
+
+    <p>When <code>arp_interval</code> is enabled, this option specifies the IP addresses to use as<br />
+  ARP monitoring peers.</p>
+  </li>
+  <li>
+    <p><code>downdelay</code></p>
+
+    <p>The time to wait (in milliseconds) before disabling a port after a link failure<br />
+  has been detected.</p>
+  </li>
+  <li>
+    <p><code>fail_over_mac</code></p>
+
+    <p>This option specifies the policy to select the MAC address for the bond interface<br />
+  in active-backup mode. The possible values are: <code>none</code> (default), <code>active</code>,<br />
+  <code>follow</code>.</p>
+  </li>
+  <li>
+    <p><code>lacp_rate</code></p>
+
+    <p>In <code>802.3ad</code> bonding mode, this option defines the rate in which we requst link<br />
+  partner to transmit LACPDU packets. The possible values are: <code>slow</code>, <code>fast</code>.</p>
+  </li>
+  <li>
+    <p><code>lp_interval</code></p>
+
+    <p>This option specifies the number of seconds between instances where the bonding<br />
+  driver sends learning packets to each ports peer switch.</p>
+  </li>
+  <li>
+    <p><code>miimon</code></p>
+
+    <p>Sets the MII link monitoring interval (in milliseconds).</p>
+  </li>
+  <li>
+    <p><code>min_links</code></p>
+
+    <p>This option specifies the minimum number of links that must be active before<br />
+  asserting the carrier.</p>
+  </li>
+  <li>
+    <p><code>num_grat_arp</code></p>
+
+    <p>This option specify the number of peer notifications (gratuitious ARPs) to be<br />
+  issued after a failover event. The allowed range for the value is 0 - 255.</p>
+  </li>
+  <li>
+    <p><code>packets_per_port</code></p>
+
+    <p>In <code>balance-rr</code> bonding mode, this option specifies the number of packets allowed<br />
+  for a port in network transmission before moving to the next one. The allowed<br />
+  range for the value is 0 - 65535.</p>
+  </li>
+  <li>
+    <p><code>peer_notif_delay</code></p>
+
+    <p>This option specifies the delay (in milliseconds) between each peer notification<br />
+  when they are issued after a failover event.</p>
+  </li>
+  <li>
+    <p><code>primary</code></p>
+
+    <p>This option defines the primary device.</p>
+  </li>
+  <li>
+    <p><code>primary_reselect</code></p>
+
+    <p>This option specifies the reselection policy for the primary port. The possible<br />
+  values are: <code>always</code>, <code>better</code>, <code>failure</code>.</p>
+  </li>
+  <li>
+    <p><code>resend_igmp</code></p>
+
+    <p>This option specifies the number of IGMP membership reports to be issued after a<br />
+  failover event. The allowed range for the value is 0 - 255.</p>
+  </li>
+  <li>
+    <p><code>tlb_dynamic_lb</code></p>
+
+    <p>This option specifies if dynamic shuffling of flows is enabled in tlb mode. The<br />
+  boolean value <code>true</code> enables the flow shuffling while the boolean value <code>false</code><br />
+  disables it.</p>
+  </li>
+  <li>
+    <p><code>updelay</code></p>
+
+    <p>This option specifies the time (in milliseconds) to wait before enabling a port<br />
+  after a link recovery has been detected.</p>
+  </li>
+  <li>
+    <p><code>use_carrier</code></p>
+
+    <p>This options specifies whether or not miimon should use MII or ETHTOOL ioctls<br />
+  versus netif_carrier_ok() to determine the link sattus. The boolean value <code>true</code><br />
+  enables the use of netif_carrier_ok() while the boolean value <code>false</code> uses MII or<br />
+  ETHTOOL ioctls instead.</p>
+  </li>
+  <li>
+    <p><code>xmit_hash_policy</code></p>
+
+    <p>This option specifies the transmit hash policy to use for port selection, the<br />
+  possible values are: <code>layer2</code>, <code>layer3+4</code>, <code>layer2+3</code>, <code>encap2+3</code>, <code>encap3+4</code>,<br />
+  <code>vlan+srcmac</code>.</p>
+  </li>
+</ul>
+
+<h2 id="examples-of-options">Examples of Options</h2>
+
+<p>Setting the same connection profile multiple times:</p>
+
+<pre><code class="language-yaml">network_connections:
+  - name: Wired0
+    type: ethernet
+    interface_name: eth0
+    ip:
+      dhcp4: true
+
+  - name: Wired0
+    state: up
+</code></pre>
+
+<p>Activating a preexisting connection profile:</p>
+
+<pre><code class="language-yaml">network_connections:
+  - name: eth0
+    state: up
+</code></pre>
+
+<p>Deactivating a preexisting connection profile:</p>
+
+<pre><code class="language-yaml">network_connections:
+  - name: eth0
+    state: down
+</code></pre>
+
+<p>Creating a persistent connection profile:</p>
+
+<pre><code class="language-yaml">network_connections:
+  - name: eth0
+    #persistent_state: present  # default
+    type: ethernet
+    autoconnect: true
+    mac: "00:00:5e:00:53:5d"
+    ip:
+      dhcp4: true
+</code></pre>
+
+<p>Specifying a connecting profile for an ethernet device with the <code>ID_PATH</code>:</p>
+
+<pre><code class="language-yaml">network_connections:
+  - name: eth0
+    type: ethernet
+    # For PCI devices, the path has the form "pci-$domain:$bus:$device.$function"
+    # The profile will only match the interface at the PCI address pci-0000:00:03.0
+    match:
+      path:
+        - pci-0000:00:03.0
+    ip:
+      address:
+        - 192.0.2.3/24
+</code></pre>
+
+<pre><code class="language-yaml">  - name: eth0
+    type: ethernet
+    # Specifying a connecting profile for an ethernet device only with the PCI address
+    # pci-0000:00:01.0 or pci-0000:00:03.0
+    match:
+      path:
+        - pci-0000:00:0[1-3].0
+        - &amp;!pci-0000:00:02.0
+    ip:
+      address:
+        - 192.0.2.3/24
+</code></pre>
+
+<p>Deleting a connection profile named <code>eth0</code> (if it exists):</p>
+
+<pre><code class="language-yaml">network_connections:
+  - name: eth0
+    persistent_state: absent
+</code></pre>
+
+<p>Configuring the Ethernet link settings:</p>
+
+<pre><code class="language-yaml">network_connections:
+  - name: eth0
+    type: ethernet
+
+    ethernet:
+      autoneg: false
+      speed: 1000
+      duplex: full
+</code></pre>
+
+<p>Creating a bridge connection:</p>
+
+<pre><code class="language-yaml">network_connections:
+  - name: br0
+    type: bridge
+    #interface_name: br0  # defaults to the connection name
+</code></pre>
+
+<p>Configuring a bridge connection:</p>
+
+<pre><code class="language-yaml">network_connections:
+  - name: internal-br0
+    interface_name: br0
+    type: bridge
+    ip:
+      dhcp4: false
+      auto6: false
+</code></pre>
+
+<p>Setting <code>controller</code> and <code>port_type</code>:</p>
+
+<pre><code class="language-yaml">network_connections:
+  - name: br0-bond0
+    type: bond
+    interface_name: bond0
+    controller: internal-br0
+    port_type: bridge
+
+  - name: br0-bond0-eth1
+    type: ethernet
+    interface_name: eth1
+    controller: br0-bond0
+    port_type: bond
+</code></pre>
+
+<p>Configuring VLANs:</p>
+
+<pre><code class="language-yaml">network_connections:
+  - name: eth1-profile
+    autoconnect: false
+    type: ethernet
+    interface_name: eth1
+    ip:
+      dhcp4: false
+      auto6: false
+
+  - name: eth1.6
+    autoconnect: false
+    type: vlan
+    parent: eth1-profile
+    vlan:
+      id: 6
+    ip:
+      address:
+        - 192.0.2.5/24
+      auto6: false
+</code></pre>
+
+<p>Configuring MACVLAN:</p>
+
+<pre><code class="language-yaml">network_connections:
+  - name: eth0-profile
+    type: ethernet
+    interface_name: eth0
+    ip:
+      address:
+        - 192.168.0.1/24
+
+  - name: veth0
+    type: macvlan
+    parent: eth0-profile
+    macvlan:
+      mode: bridge
+      promiscuous: true
+      tap: false
+    ip:
+      address:
+        - 192.168.1.1/24
+</code></pre>
+
+<p>Configuring a wireless connection:</p>
+
+<pre><code class="language-yaml">network_connections:
+  - name: wlan0
+    type: wireless
+    wireless:
+      ssid: "My WPA2-PSK Network"
+      key_mgmt: "wpa-psk"
+      # recommend vault encrypting the wireless password
+      # see https://docs.ansible.com/ansible/latest/user_guide/vault.html
+      password: "p@55w0rD"
+</code></pre>
+
+<p>Setting the IP configuration:</p>
+
+<pre><code class="language-yaml">network_connections:
+  - name: eth0
+    type: ethernet
+    ip:
+      route_metric4: 100
+      dhcp4: false
+      #dhcp4_send_hostname: false
+      gateway4: 192.0.2.1
+
+      dns:
+        - 192.0.2.2
+        - 198.51.100.5
+      dns_search:
+        - example.com
+        - subdomain.example.com
+      dns_options:
+        - rotate
+        - timeout:1
+
+      route_metric6: -1
+      auto6: false
+      gateway6: 2001:db8::1
+
+      address:
+        - 192.0.2.3/24
+        - 198.51.100.3/26
+        - 2001:db8::80/7
+
+      route:
+        - network: 198.51.100.128
+          prefix: 26
+          gateway: 198.51.100.1
+          metric: 2
+        - network: 198.51.100.64
+          prefix: 26
+          gateway: 198.51.100.6
+          metric: 4
+      route_append_only: false
+      rule_append_only: true
+</code></pre>
+
+<p>Configuring 802.1x:</p>
+
+<pre><code class="language-yaml">network_connections:
+  - name: eth0
+    type: ethernet
+    ieee802_1x:
+      identity: myhost
+      eap: tls
+      private_key: /etc/pki/tls/client.key
+      # recommend vault encrypting the private key password
+      # see https://docs.ansible.com/ansible/latest/user_guide/vault.html
+      private_key_password: "p@55w0rD"
+      client_cert: /etc/pki/tls/client.pem
+      ca_cert: /etc/pki/tls/cacert.pem
+      domain_suffix_match: example.com
+</code></pre>
+
+<p>Configuring Enhanced Open(OWE):</p>
+
+<pre><code class="language-yaml">network_connections:
+  - name: wlan0
+    type: wireless
+    wireless:
+      ssid: "WIFI_SSID"
+      key_mgmt: "owe"
+</code></pre>
+
+<h2 id="examples-of-applying-the-network-state-configuration">Examples of Applying the Network State Configuration</h2>
+
+<p>Configuring the IP addresses:</p>
+
+<pre><code class="language-yaml">network_state:
+  interfaces:
+    - name: ethtest0
+      type: ethernet
+      state: up
+      ipv4:
+        enabled: true
+        address:
+          - ip: 192.168.122.250
+            prefix-length: 24
+        dhcp: false
+      ipv6:
+        enabled: true
+        address:
+          - ip: 2001:db8::1:1
+            prefix-length: 64
+        autoconf: false
+        dhcp: false
+    - name: ethtest1
+      type: ethernet
+      state: up
+      ipv4:
+        enabled: true
+        address:
+          - ip: 192.168.100.192
+            prefix-length: 24
+        auto-dns: false
+        dhcp: false
+      ipv6:
+        enabled: true
+        address:
+          - ip: 2001:db8::2:1
+            prefix-length: 64
+        autoconf: false
+        dhcp: false
+</code></pre>
+
+<p>Configuring the route:</p>
+
+<pre><code class="language-yaml">network_state:
+  interfaces:
+    - name: eth1
+      type: ethernet
+      state: up
+      ipv4:
+        enabled: true
+        address:
+          - ip: 192.0.2.251
+            prefix-length: 24
+        dhcp: false
+
+  routes:
+    config:
+      - destination: 198.51.100.0/24
+        metric: 150
+        next-hop-address: 192.0.2.251
+        next-hop-interface: eth1
+        table-id: 254
+</code></pre>
+
+<p>Configuring the DNS search and server:</p>
+
+<pre><code class="language-yaml">network_state:
+  dns-resolver:
+    config:
+      search:
+        - example.com
+        - example.org
+      server:
+        - 2001:4860:4860::8888
+        - 8.8.8.8
+</code></pre>
+
+<h3 id="invalid-and-wrong-configuration">Invalid and Wrong Configuration</h3>
+
+<p>The <code>network</code> role rejects invalid configurations. It is recommended to test the role<br />
+with <code>--check</code> first. There is no protection against wrong (but valid) configuration.<br />
+Double-check your configuration before applying it.</p>
+
+<h2 id="compatibility">Compatibility</h2>
+
+<p>The <code>network</code> role supports the same configuration scheme for both providers (<code>nm</code><br />
+and <code>initscripts</code>). That means, you can use the same playbook with NetworkManager<br />
+and initscripts. However, note that not every option is handled exactly the same<br />
+by every provider. Do a test run first with <code>--check</code>.</p>
+
+<p>It is not supported to create a configuration for one provider, and expect another<br />
+provider to handle them. For example, creating profiles with the <code>initscripts</code> provider,<br />
+and later enabling NetworkManager is not guaranteed to work automatically. Possibly,<br />
+you have to adjust the configuration so that it can be used by another provider.</p>
+
+<p>For example, configuring a RHEL6 host with initscripts and upgrading to<br />
+RHEL7 while continuing to use initscripts in RHEL7 is an acceptable scenario. What<br />
+is not guaranteed is to upgrade to RHEL7, disable initscripts and expect NetworkManager<br />
+to take over the configuration automatically.</p>
+
+<p>Depending on NetworkManager’s configuration, connections may be stored as ifcfg files<br />
+as well, but it is not guaranteed that plain initscripts can handle these ifcfg files<br />
+after disabling the NetworkManager service.</p>
+
+<h2 id="limitations">Limitations</h2>
+
+<p>As Ansible usually works via the network, for example via SSH, there are some<br />
+limitations to be considered:</p>
+
+<p>The <code>network</code> role does not support bootstraping networking configuration. One option<br />
+may be<br />
+<a href="https://docs.ansible.com/ansible/latest/cli/ansible-pull.html">ansible-pull</a>.<br />
+Another option maybe be to initially auto-configure the host during installation (ISO<br />
+based, kickstart, etc.), so that the host is connected to a management LAN or VLAN. It<br />
+strongly depends on your environment.</p>
+
+<p>For <code>initscripts</code> provider, deploying a profile merely means to create the ifcfg<br />
+files. Nothing happens automatically until the play issues <code>ifup</code> or <code>ifdown</code><br />
+via the <code>up</code> or <code>down</code> <a href="#state">states</a> – unless there are other<br />
+components that rely on the ifcfg files and react on changes.</p>
+
+<p>The <code>initscripts</code> provider requires the different profiles to be in the right<br />
+order when they depend on each other. For example the bonding controller device<br />
+needs to be specified before the port devices.</p>
+
+<p>When removing a profile for NetworkManager it also takes the connection<br />
+down and possibly removes virtual interfaces. With the <code>initscripts</code> provider<br />
+removing a profile does not change its current runtime state (this is a future<br />
+feature for NetworkManager as well).</p>
+
+<p>For NetworkManager, modifying a connection with autoconnect enabled may result in the<br />
+activation of a new profile on a previously disconnected interface. Also, deleting a<br />
+NetworkManager connection that is currently active results in removing the interface.<br />
+Therefore, the order of the steps should be followed, and carefully handling of<br />
+<a href="#autoconnect">autoconnect</a> property may be necessary. This should be improved in<br />
+NetworkManager RFE <a href="https://bugzilla.redhat.com/show_bug.cgi?id=1401515">rh#1401515</a>.</p>
+
+<p>It seems difficult to change networking of the target host in a way that breaks<br />
+the current SSH connection of ansible. If you want to do that, ansible-pull might<br />
+be a solution. Alternatively, a combination of <code>async</code>/<code>poll</code> with changing<br />
+the <code>ansible_host</code> midway of the play.</p>
+
+<p><strong>TODO</strong> The current role does not yet support to easily split the<br />
+play in a pre-configure step, and a second step to activate the new configuration.</p>
+
+<p>In general, to successfully run the play, determine which configuration is<br />
+active in the first place, and then carefully configure a sequence of steps to change to<br />
+the new configuration. The actual solution depends strongly on your environment.</p>
+
+<h3 id="handling-potential-problems">Handling potential problems</h3>
+
+<p>When something goes wrong while configuring networking remotely, you might need<br />
+to get physical access to the machine to recover.</p>
+
+<p><strong>TODO</strong> NetworkManager supports a<br />
+<a href="https://developer.gnome.org/NetworkManager/stable/gdbus-org.freedesktop.NetworkManager.html#gdbus-method-org-freedesktop-NetworkManager.CheckpointCreate">checkpoint/rollback</a><br />
+feature. At the beginning of the play we could create a checkpoint and if we lose<br />
+connectivity due to an error, NetworkManager would automatically rollback after<br />
+timeout. The limitations is that this would only work with NetworkManager, and<br />
+it is not clear that rollback will result in a working configuration.</p>
+
+<p><em>Want to contribute? Take a look at our <a href="https://github.com/linux-system-roles/network/blob/main/contributing.md">contributing<br />
+guidelines</a>!</em></p>

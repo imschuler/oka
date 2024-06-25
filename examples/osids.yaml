@@ -1,0 +1,119 @@
+osids:
+  - osid:           suse_sles12_5
+    repos:          [ { ins: "file:///srv/isos/SLE-12-SP5-Server-DVD-x86_64-Boothole-Respin-DVD1.iso" } ]
+    packages:       [ "python36" ]
+
+  - osid:           suse_sles12_5_oem
+    repos:          [ { ins: "file:///srv/isos/SLE-12-SP5-Server-DVD-x86_64-Boothole-Respin-DVD1.iso" }, { drv: "file:///srv/isos/igb-5.14.16-1-000.iso" } ]
+    packages:       [ "python36" ]
+
+  - osid:           suse_sles15_1
+    repos:
+      - ins: "file:///srv/isos/SLE-15-SP1-Installer-DVD-x86_64-QU5-Media1.iso"
+      - add: "file:///srv/isos/SLE-15-SP1-Packages-x86_64-QU5-Media1.iso"
+    product:        SLES
+    packages:       [ "python3", "sudo", "wget" ]
+
+  - osid:           suse_sles15_2
+    repos:          [ { ins: "file:///srv/isos/SLE-15-SP2-Full-x86_64-QU3-Media1.iso" } ]
+    product:        SLES
+    packages:       [ "python3", "sudo", "wget" ]
+
+  - osid:           suse_sles15_3
+    repos:          [ { ins: "file:///srv/isos/SLE-15-SP3-Full-x86_64-GM-Media1.iso" } ]
+    product:        SLES
+    packages:       [ "python3", "sudo", "wget" ]
+
+  - osid:           suse_sles15_3_oem
+    repos:          [ { ins: "file:///srv/isos/SLE-15-SP3-Full-x86_64-GM-Media1.iso" }, { drv: "file:///srv/isos/i40e-2.22.18-1-000.iso" } ]
+    product:        SLES
+    packages:       [ "python3", "sudo", "wget" ]
+
+  - osid:           suse_sles15_4
+    repos:          [ { ins: "file:///srv/isos/SLE-15-SP4-Full-x86_64-GM-Media1.iso" } ]
+    product:        SLES
+    packages:       [ "python3", "sudo", "openssh", "wget" ]
+
+  - osid:           suse_sles15_5
+    repos:          [ { ins: "file:///srv/isos/SLE-15-SP5-Full-x86_64-GM-Media1.iso" } ]
+    product:        SLES
+    packages:       [ "python3", "sudo", "openssh", "wget" ]
+
+  - osid:           suse_sles15_5_oem
+    repos:          [ { ins: "file:///srv/isos/SLE-15-SP5-Full-x86_64-GM-Media1.iso" }, { drv: "file:///srv/isos/i40e-2.23.17-1-000.iso" } ]
+    product:        SLES
+    packages:       [ "python3", "sudo", "openssh", "wget" ]
+
+  - osid:           redhat_rhel7_6
+    repos:          [ { ins: "file:///srv/isos/RHEL-7.6-20181010.0-Server-x86_64-dvd1.iso" } ]
+    packages:       [ "@^minimal" ]
+
+  - osid:           redhat_rhel7_7
+    repos:          [ { ins: "file:///srv/isos/rhel-server-7.7-x86_64-dvd.iso" } ]
+    packages:       [ "@^minimal" ]
+
+  - osid:           redhat_rhel7_8
+    repos:          [ { ins: "file:///srv/isos/RH7U8.iso" } ]
+    packages:       [ "@^minimal" ]
+
+  - osid:           redhat_rhel7_9
+    repos:          [ { ins: "file:///srv/isos/RHEL-7.9-20200917.0-Server-x86_64-dvd1.iso" } ]
+    packages:       [ "@^minimal" ]
+
+  - osid:           redhat_rhel8_2
+    repos:          [ { ins: "file:///srv/isos/rhel-8.2-x86_64-dvd.iso" } ]
+    packages:       [ "@^minimal-environment" ]
+
+  - osid:           redhat_rhel8_3
+    repos:          [ { ins: "file:///srv/isos/RHEL-8.3.0-20201009.2-x86_64-dvd1.iso" } ]
+    packages:       [ "@^minimal-environment" ]
+
+  - osid:           redhat_rhel8_4
+    repos:          [ { ins: "file:///srv/isos/RHEL-8.4.0-20210503.1-x86_64-dvd1.iso" } ]
+    packages:       [ "@^minimal-environment" ]
+
+  - osid:           redhat_rhel8_5
+    repos:          [ { ins: "file:///srv/isos/RHEL-8.5.0-20211013.2-x86_64-dvd1.iso" } ]
+    packages:       [ "@^minimal-environment" ]
+
+  - osid:           redhat_rhel8_6
+    repos:          [ { ins: "file:///srv/isos/RHEL-8.6.0-20220420.3-x86_64-dvd1.iso" } ]
+    packages:       [ "@^minimal-environment" ]
+
+  - osid:           redhat_rhel8_7
+    repos:          [ { ins: "file:///srv/isos/rhel-8.7-x86_64-dvd.iso" } ]
+    packages:       [ "@^minimal-environment" ]
+
+  - osid:           redhat_rhel8_8_oem
+    repos:          [ { ins: "file:///srv/isos/RHEL-8.8.0-20230411.3-x86_64-dvd1.iso" },
+                      { drv: "file:///srv/isos/i40e-2.23.17-1.el8.8-000.x86_64.iso" },
+                      { drv: "file:///srv/isos/igb-5.14.16-1.el8.8-000.x86_64.iso" } ]
+    packages:       [ "@^minimal-environment" ]
+
+  - osid:           redhat_rhel8_9
+    repos:          [ { ins: "file:///srv/isos/rhel-8.9-x86_64-dvd.iso" } ]
+    packages:       [ "@^minimal-environment" ]
+
+  - osid:           redhat_rhel8_10
+    repos:          [ { ins: "file:///srv/isos/RHEL-8.10.0-20240516.14-x86_64-dvd1.iso" } ]
+    packages:       [ "@^minimal-environment" ]
+
+  - osid:           redhat_rhel9_0
+    repos:          [ { ins: "file:///srv/isos/RHEL-9.0.0-20220420.0-x86_64-dvd1.iso" } ]
+    packages:       [ "@^minimal-environment" ]
+
+  - osid:           redhat_rhel9_1
+    repos:          [ { ins: "file:///srv/isos/rhel-baseos-9.1-x86_64-dvd.iso" } ]
+    packages:       [ "@^minimal-environment" ]
+
+  - osid:           redhat_rhel9_2
+    repos:          [ { ins: "file:///srv/isos/RHEL-9.2.0-20230414.17-x86_64-dvd1.iso" } ]
+    packages:       [ "@^minimal-environment" ]
+
+  - osid:           redhat_rhel9_3
+    repos:          [ { ins: "file:///srv/isos/rhel-9.3-x86_64-dvd.iso" } ]
+    packages:       [ "@^minimal-environment" ]
+
+  - osid:           redhat_rhel9_4
+    repos:          [ { ins: "file:///srv/isos/rhel-9.4-x86_64-dvd.iso" } ]
+    packages:       [ "@^minimal-environment" ]

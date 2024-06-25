@@ -1,0 +1,13 @@
+{{ $namespace := .Release.Namespace }}
+{{- if not (lookup "v1" "ConfigMap" $namespace "osids") }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: osids
+  labels:
+    app.kubernetes.io/name: oka
+data:
+  {{- range $key, $value := (lookup "v1" "ConfigMap" "oka-system" "osids").data }}
+    {{ $key }}: {{ $value | quote }}
+  {{- end }}
+{{- end }}

@@ -1,0 +1,12 @@
+# osid to be used for the installation, examples:
+# suse_sles15_4
+# redhat_rhel8_9
+osid:
+# host to install 
+host:
+
+# optional SUSE activation key to use ( has priority over an SMT server )
+suse_activation_key:
+
+# optional Pool ID
+redhat_pool_id:

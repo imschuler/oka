@@ -1,0 +1,4 @@
+---
+# defaults file for suse_network
+network_connections:
+timeout: "{{ reboot_timeout }}"

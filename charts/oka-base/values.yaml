@@ -1,0 +1,49 @@
+# a single subnet must be specified in each K8s namespace
+# a certificate may be specified, if there is an HTTP  proxy to the Internet with its own certificate
+subnet:
+  subnet:
+  netmask:
+  range_begin:
+  range_end:
+  domain:
+# optional settings for an SMT server
+  smt_server:
+  smt_fingerprint:
+# optional HTTP proxy with optional certificate
+  proxy_host:
+  proxy_port:
+
+# an osid describes the installation media ( and location ) to be used
+# note that some packages must be installed to get the install server running ( which is based on Ansible )
+# some OS ( SLES 15 SP1 ) need several repositories, so repos is an array
+osids:
+  - osid:
+    repos: 
+# opional product i.e. SLES
+    product:
+# mandatory array of packages to get Ansible running
+    packages:
+
+# note that host may be any string, host_name will get the hostname
+# that way different disks may be configured for the same host_name
+hosts:
+  - host:
+    locale:
+    disk:
+    host_name:
+    timezone:
+# optional MAC and IP address of PXE interface
+    pxe:
+      ip:
+      mac:
+    inet:
+      mac:
+# optional IP address, DNS and ( default ) gateway to the Internet
+      ip:
+      dns:
+      gateway:
+# optional iRMC settings to initiate the PXE boot
+    irmc:
+      ip:
+      user:
+      password:

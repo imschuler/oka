@@ -1,0 +1,7 @@
+apiVersion: v2
+name: oka-install
+version: 0.6.1
+description: An install server for PRIMERGY servers
+maintainers:
+  - name:  Michael Schuler
+    email: michael.schuler@fujitsu.com

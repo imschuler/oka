@@ -8,7 +8,21 @@
 DOCKER_ACCOUNT=imschuler
 VERSION=0.6.1
 
-IID=$(podman build ./apps/dhcpd)
+case $HOSTTYPE in
+  aarch64)
+    VERSION=arm64-$VERSION
+    PLATFORM=linux/arm64
+    ;;
+
+  x86_64)
+    VERSION=amd64-$VERSION
+    PLATFORM=linux/amd64
+    ;;
+esac
+
+
+
+IID=$(podman build --platform=$PLATFORM ./apps/dhcpd)
 if [ $? != 0 ]
 then
   exit -1
@@ -25,7 +39,7 @@ then
 fi
 
 ###
-IID=$(podman build ./apps/tftpd)
+IID=$(podman build --platform=$PLATFORM ./apps/tftpd)
 if [ $? != 0 ]
 then
   exit -1
@@ -42,7 +56,7 @@ then
 fi
 
 ###
-IID=$(podman build ./apps/httpd)
+IID=$(podman build --platform=$PLATFORM ./apps/httpd)
 if [ $? != 0 ]
 then
   exit -1
@@ -59,7 +73,7 @@ then
 fi
 
 ###
-IID=$(podman build ./apps/isosd)
+IID=$(podman build --platform=$PLATFORM ./apps/isosd)
 if [ $? != 0 ]
 then
   exit -1
@@ -76,7 +90,7 @@ then
 fi
 
 ###
-IID=$(podman build ./jobs/install)
+IID=$(podman build --platform=$PLATFORM ./jobs/install)
 if [ $? != 0 ]
 then
   exit -1

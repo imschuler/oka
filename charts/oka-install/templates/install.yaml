@@ -40,7 +40,7 @@ metadata:
     app.kubernetes.io/name: oka
 immutable: true
 stringData:
-  access: |-
+  access: |
   {{- range $key, $value :=  ( lookup "v1" "Secret" $namespace "access" ).data }}
     {{ $key }}: {{ $value | b64dec | trim | quote }}
   {{- end }}

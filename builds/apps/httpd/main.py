@@ -26,9 +26,10 @@ class Request(BaseModel):
     repos: List[Repo]
     disk: str
     product: Union[str, None] = None 
+    patterns: Union[List[str], None] = None
+    packages: List[str]
     root_password: str
     pub_key: str
-    packages: List[str]
     locale: str
     httpd_ip_ext: str
     pxe_mac: str
@@ -113,9 +114,10 @@ def cleanup(dir):
 
 def render(in_file, out_file, install_id, input):
     with open(in_file, "r") as f:
-        packages = None
         addon_repo = None
         product = None
+        patterns = None
+        packages = None
 
         skip_line = False
 
@@ -136,28 +138,35 @@ def render(in_file, out_file, install_id, input):
                         skip_line = True
                     continue
 
-                if "{% if packages %}" in line:
-                    if "packages" in input:
-                        packages = ""
-                        for package in input["packages"]:
-                            if input["osid"].startswith("suse"):
-                                packages = packages + "<package>" + package + "</package>\n"
-                            else:
-                                packages = packages + "\n" + package
-                        else:
-                            skip_line = True
-                    continue
-
                 if "{% if product %}" in line:
-                    if "product" in input:
+                    if "product" in input and input["product"]:
                         product = input["product"]
                     else:
                         skip_line = True
                     continue
 
+                if "{% if patterns %}" in line:
+                    if "patterns" in input and input["patterns"]:
+                        patterns = ""
+                        for pattern in input["patterns"]:
+                            patterns = patterns + "<pattern>" + pattern + "</pattern>\n"
+                    else:
+                        skip_line = True
+                    continue
+
+                if "{% if packages %}" in line:
+                    packages = ""
+                    for package in input["packages"]:
+                        if input["osid"].startswith("suse"):
+                            packages = packages + "<package>" + package + "</package>\n"
+                        else:
+                            packages = packages + "\n" + package
+                    continue
+
                 if "{% endif %}" in line:
                     skip_line = False
                     product = None
+                    patterns = None
                     packages = None
                     addon_repo = None
                     continue
@@ -173,6 +182,10 @@ def render(in_file, out_file, install_id, input):
 
                 if product != None:
                     line = re.sub("{{ *product *}}", product, line)
+                    g.write(line)
+                    continue
+                if patterns != None:
+                    line = re.sub("{{ *patterns *}}", patterns, line)
                     g.write(line)
                     continue
                 if packages != None:

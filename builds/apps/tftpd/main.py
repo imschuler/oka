@@ -45,8 +45,8 @@ def create_base(install_id: str, request: Request):
         shutil.copy("/depot/linux", BASE_DIR + install_id + "/pxelinux/")
         shutil.copy("/depot/initrd", BASE_DIR + install_id + "/pxelinux/")
     elif prefix == "redhat":
-        shutil.copy("/depot/initrd.img", BASE_DIR + install_id + "/pxelinux/")
         shutil.copy("/depot/vmlinuz", BASE_DIR + install_id + "/pxelinux/")
+        shutil.copy("/depot/initrd.img", BASE_DIR + install_id + "/pxelinux/")
 
     os.mkdir(BASE_DIR + install_id + "/efi")
     if prefix == "suse":
@@ -60,8 +60,8 @@ def create_base(install_id: str, request: Request):
         shutil.copy("/depot/linux", BASE_DIR + install_id + "/efi/")
         shutil.copy("/depot/initrd", BASE_DIR + install_id + "/efi/")
     elif prefix == "redhat":
-        shutil.copy("/depot/initrd.img", BASE_DIR + install_id + "/efi/")
         shutil.copy("/depot/vmlinuz", BASE_DIR + install_id + "/efi/")
+        shutil.copy("/depot/initrd.img", BASE_DIR + install_id + "/efi/")
 
     render("/templates/default_" + prefix + ".j2", BASE_DIR + install_id + "/pxelinux/pxelinux.cfg/default", install_id, input)
     render("/templates/grub_" + prefix + ".j2", BASE_DIR + install_id + "/efi/grub.cfg", install_id, input)
@@ -97,7 +97,7 @@ def render(in_file, out_file, install_id, input):
 
 def download(install_id):
 
-    for path in [ "boot/x86_64/loader/linux", "boot/x86_64/loader/initrd", "isolinux/initrd.img", "isolinux/vmlinuz" ]:
+    for path in [ "boot/x86_64/loader/linux", "boot/x86_64/loader/initrd", "isolinux/initrd.img", "isolinux/vmlinuz", "EFI/BOOT/grub.efi", "EFI/BOOT/bootx64.efi", "EFI/BOOT/grubx64.efi", "EFI/BOOT/BOOTX64.EFI" ]:
          
         url = "_repos/" + install_id + "/repo/" + path 
         basename = os.path.basename(path) 

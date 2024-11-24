@@ -22,6 +22,11 @@ data:
       {{- if .product }}
       product:  {{ .product }}
       {{- end }}
+      {{- if .patterns }}
+      patterns: {{- range .patterns }}
+                - {{ quote . }}
+                {{- end }}
+      {{- end }}
       packages: {{- range .packages }}
                 - {{ quote . }}
                 {{- end }}

@@ -1,4 +1,4 @@
-{{- $install_id := uuidv4 -}}
+{{- $install_id := randAlphaNum 8 | lower -}}
 {{- $namespace := .Release.Namespace }}
 apiVersion: v1
 kind: ConfigMap

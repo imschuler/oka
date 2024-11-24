@@ -80,6 +80,9 @@
           {% if product is defined %}
           "product": "{{ product }}",
           {% endif %}
+          {% if patterns is defined %}
+          "patterns": {{ patterns | to_json }}, 
+          {% endif %}
           "packages": {{ packages | to_json }}, 
           "locale": "{{ locale.split('.')[0] }}",  
           "httpd_ip_ext": "{{ httpd_ip_ext }}",

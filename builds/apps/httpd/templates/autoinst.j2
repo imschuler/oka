@@ -66,6 +66,11 @@
      <product>{{ product }}</product>
    </products>
 {% endif %}
+{% if patterns %}
+   <patterns config:type="list">
+     {{ patterns }}
+   </patterns>
+{% endif %}
 {% if packages %}
    <packages config:type="list">
      {{ packages }}

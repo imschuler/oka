@@ -1,20 +1,20 @@
 #!/usr/bin/env python3
 
-# expects environment variables
-# HTTPD_ID
-# NFS_SERVER_IP
-
 import subprocess, os, shutil, re, json, hashlib, socket
 
 from typing import Union
 from typing import List
-from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from fastapi.responses import HTMLResponse
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import Response, HTMLResponse
+from prometheus_client import Counter, generate_latest
 
 BASE_DIR="/srv/uvicorn/"
-if not os.path.exists(BASE_DIR):
-    os.makedirs(BASE_DIR)
+
+app = FastAPI()
+
+REQUESTS = Counter("http_requests_total", "HTTP Requests", labelnames=["method"])
+EXCEPTIONS = Counter("http_errors_total", "HTTP Exceptions", labelnames=["method"])
 
 class Repo(BaseModel):
     ins: Union[str, None] = None
@@ -46,48 +46,61 @@ class Message(BaseModel):
     interfaces: List[Interface]
     pxe_bootnum: Union[str, None] = None
 
-app = FastAPI()
+@app.get("/metrics")
+async def get_metrics():
+    return Response(generate_latest())
 
 @app.get("/{install_id}/{file}")
-def get_file(install_id: str, file: str):
-    try:
-       with open(BASE_DIR + install_id + "/" + file, "r") as f:
-          return HTMLResponse(f.read(), status_code=200)
-    except:
-       pass
-    return HTMLResponse("", status_code=404)
+async def get_file(install_id: str, file: str):
+
+    REQUESTS.labels("get").inc();
+    with EXCEPTIONS.labels("get").count_exceptions():
+        path = BASE_DIR + install_id + "/" + file;
+        if not os.path.exists(path):
+            return HTMLResponse("", status_code=404)
+        with open(path, "r") as f:
+            return HTMLResponse(f.read(), status_code=200)
 
 @app.put("/{install_id}/{file}")
-def create_file(install_id: str, file: str, message: Message):
-    input = message.dict()
+async def create_file(install_id: str, file: str, message: Message):
 
-    with open(BASE_DIR + install_id + "/" + file, "w") as f:
-        json.dump(input, f)
-    return { "status": " OK" }
+    REQUESTS.labels("put").inc();
+    with EXCEPTIONS.labels("put").count_exceptions():
+        input = message.dict()
+
+        with open(BASE_DIR + install_id + "/" + file, "w") as f:
+            json.dump(input, f)
+        return { "status": " OK" }
 
 @app.post("/{install_id}")
-def create_install(install_id: str, request: Request):
-    input = request.dict() 
+async def create_base(install_id: str, request: Request):
 
-    cleanup(BASE_DIR + install_id + "/")
-    os.mkdir(BASE_DIR + install_id + "/")
+    REQUESTS.labels("post").inc();
+    with EXCEPTIONS.labels("post").count_exceptions():
+        input = request.dict() 
 
-    prefix = input["osid"].split("_") [0]
-    if prefix == "redhat":
-        render("/templates/ks.j2", BASE_DIR + install_id + "/ks.cfg", install_id, input)
-    elif prefix == "suse":
-        render("/templates/autoinst.j2", BASE_DIR + install_id + "/autoinst.xml", install_id, input)
+        cleanup(BASE_DIR + install_id + "/")
+        os.mkdir(BASE_DIR + install_id + "/")
 
-    render("/templates/pre_" + prefix + ".j2", BASE_DIR + install_id + "/pre.sh", install_id, input)
-    render("/templates/post_" + prefix + ".j2", BASE_DIR + install_id + "/post.sh", install_id, input)
+        prefix = input["osid"].split("_") [0]
+        if prefix == "redhat":
+            render("/templates/ks.j2", BASE_DIR + install_id + "/ks.cfg", install_id, input)
+        elif prefix == "suse":
+            render("/templates/autoinst.j2", BASE_DIR + install_id + "/autoinst.xml", install_id, input)
 
-    return { "status": " OK" }
+        render("/templates/pre_" + prefix + ".j2", BASE_DIR + install_id + "/pre.sh", install_id, input)
+        render("/templates/post_" + prefix + ".j2", BASE_DIR + install_id + "/post.sh", install_id, input)
+
+        return { "status": " OK" }
 
 @app.delete("/{install_id}")
-def remove_install(install_id: str):
-    cleanup(BASE_DIR + install_id + "/")
+async def remove_base(install_id: str):
 
-    return { "status": " OK" }
+    REQUESTS.labels("delete").inc();
+    with EXCEPTIONS.labels("delete").count_exceptions():
+        cleanup(BASE_DIR + install_id + "/")
+
+        return { "status": " OK" }
 
 def cleanup(dir):
     if not os.path.exists(dir):

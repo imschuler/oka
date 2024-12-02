@@ -34,6 +34,11 @@ spec:
       labels:
         app.kubernetes.io/name: oka
         app.kubernetes.io/component: dhcpd
+        app.kubernetes.io/version: {{ .Chart.Version }}
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8081"
+        prometheus.io/path: "/metrics" 
     spec:
       hostNetwork: true
       containers:

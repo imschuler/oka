@@ -1,6 +1,6 @@
-FROM registry.suse.com/bci/bci-base:15.5 
+FROM registry.suse.com/bci/bci-base:15.6 
 
-RUN zypper -n in tftp && zypper -n in python3 &&  zypper -n in python3-pip && pip install fastapi && pip install uvicorn && mkdir /depot && mkdir /templates
+RUN zypper -n in tftp && zypper -n in python3 &&  zypper -n in python3-pip && pip install fastapi && pip install uvicorn && pip install prometheus-client && mkdir /depot && mkdir /templates
 
 COPY ./main.py /bin/
 

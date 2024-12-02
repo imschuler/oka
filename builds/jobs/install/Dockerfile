@@ -1,4 +1,4 @@
-FROM registry.redhat.io/ansible-automation-platform/ee-minimal-rhel9:2.16.5-2
+FROM registry.redhat.io/ansible-automation-platform/ee-minimal-rhel9:2.18.0-2
 
 # COPY ./certificate.pem /etc/pki/ca-trust/source/anchors/
 
@@ -8,4 +8,4 @@ COPY ./depot /depot
 
 WORKDIR /depot
 
-ENTRYPOINT ansible-playbook -vvv step_${JOB_COMPLETION_INDEX}.yml
+ENTRYPOINT ansible-playbook -vv step_${JOB_COMPLETION_INDEX}.yml

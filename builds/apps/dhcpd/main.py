@@ -4,6 +4,8 @@ import subprocess, os, shutil, re, ipaddress, signal, socket
 
 from typing import Union
 from fastapi import FastAPI
+from fastapi.responses import Response
+from prometheus_client import Counter, generate_latest
 
 def render(in_file, out_file, args):
     with open(in_file, "r") as f:
@@ -74,42 +76,55 @@ os.unsetenv("DHCPD_PORT")
 
 app = FastAPI()
 
-@app.post("/")
-def create_root(subnet: str, netmask: str, range_begin: str, range_end: str):
+REQUESTS = Counter("dhcp_requests_total", "HTTP Requests", labelnames=["method"])
+EXCEPTIONS = Counter("dhcp_errors_total", "HTTP Exceptions", labelnames=["method"])
 
-    if os.path.isfile("/var/lib/dhcp/db/dhcpd.leases"):
+@app.get("/metrics")
+async def get_metrics():
+    return Response(generate_latest())
+
+@app.post("/")
+async def create_root(subnet: str, netmask: str, range_begin: str, range_end: str):
+
+    REQUESTS.labels("post").inc();
+    with EXCEPTIONS.labels("post").count_exceptions():
+        if os.path.isfile("/var/lib/dhcp/db/dhcpd.leases"):
+            return { "status": " OK" }
+
+        render("/templates/dhcpd.j2", "/etc/dhcpd.conf", { "subnet": subnet, "netmask": netmask, "range_begin": range_begin, "range_end": range_end })
+
+        with open("/var/lib/dhcp/db/dhcpd.leases", "w"):
+            pass
+
+        restart_dhcpd()
         return { "status": " OK" }
 
-    render("/templates/dhcpd.j2", "/etc/dhcpd.conf", { "subnet": subnet, "netmask": netmask, "range_begin": range_begin, "range_end": range_end })
-
-    with open("/var/lib/dhcp/db/dhcpd.leases", "w"):
-        pass
-
-    restart_dhcpd()
-    return { "status": " OK" }
-
 @app.post("/{install_id}")
-def create_base(install_id: str, host: str, osid: str, ip: str, mac: str, shim: Union[str, None] = None, tftpd_ip_ext: Union[str, None] = None):
-    if os.path.exists("/tmp/host.conf"):
-        os.remove("/tmp/host.conf")
+async def create_base(install_id: str, host: str, osid: str, ip: str, mac: str, shim: Union[str, None] = None, tftpd_ip_ext: Union[str, None] = None):
 
-    prefix = osid.split(".")[0]
-    remove("/etc/dhcpd.conf", mac)
+    REQUESTS.labels("post").inc();
+    with EXCEPTIONS.labels("post").count_exceptions():
+        if os.path.exists("/tmp/host.conf"):
+            os.remove("/tmp/host.conf")
 
-    if tftpd_ip_ext == None:
-        render("/templates/host_none.j2", "/tmp/host.conf", { "install_id": install_id, "host": host, "osid": osid, "ip": ip, "mac": mac })
-    else:
-        render("/templates/host_tftp.j2", "/tmp/host.conf", { "install_id": install_id, "host": host, "osid": osid, "ip": ip, "mac": mac, "shim": shim, "tftpd_ip_ext": tftpd_ip_ext })
+        remove("/etc/dhcpd.conf", mac)
 
-    insert("/tmp/host.conf", "/etc/dhcpd.conf")
+        if not tftpd_ip_ext:
+            render("/templates/host_none.j2", "/tmp/host.conf", { "install_id": install_id, "host": host, "osid": osid, "ip": ip, "mac": mac })
+        else:
+            render("/templates/host_tftp.j2", "/tmp/host.conf", { "install_id": install_id, "host": host, "osid": osid, "ip": ip, "mac": mac, "shim": shim, "tftpd_ip_ext": tftpd_ip_ext })
 
-    restart_dhcpd()
-    return { "status": " OK" }
+        insert("/tmp/host.conf", "/etc/dhcpd.conf")
+
+        restart_dhcpd()
+        return { "status": " OK" }
 
 @app.delete("/{install_id}")
-def remove_base(install_id: str, mac: str):
+async def remove_base(install_id: str, mac: str):
 
-    remove("/etc/dhcpd.conf", mac)
+    REQUESTS.labels("delete").inc();
+    with EXCEPTIONS.labels("delete").count_exceptions():
+        remove("/etc/dhcpd.conf", mac)
 
-    restart_dhcpd()
-    return { "status": " OK" }
+        restart_dhcpd()
+        return { "status": " OK" }

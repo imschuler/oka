@@ -1,4 +1,4 @@
-FROM registry.redhat.io/ansible-automation-platform/ee-minimal-rhel9:2.18.0-2
+FROM registry.redhat.io/ansible-automation-platform/ee-minimal-rhel9:2.16.13-2
 
 # COPY ./certificate.pem /etc/pki/ca-trust/source/anchors/
 

@@ -35,3 +35,9 @@
     state: started 
     enabled: true
     daemon_reload: true
+
+- name: disable proxy
+  lineinfile:
+    path: /etc/sysconfig/proxy
+    line: PROXY_ENABLED=no
+    regexp: ^PROXY_ENABLED

@@ -25,8 +25,8 @@ subprocess.run("/usr/sbin/httpd", shell=True, check=True)
 
 app = FastAPI()
 
-REQUESTS = Counter("isos_requests_total", "HTTP Requests", labelnames=["method"])
-EXCEPTIONS = Counter("isos_errors_total", "HTTP Exceptions", labelnames=["method"])
+REQUESTS = Counter("oka_isos_requests_total", "HTTP Requests", labelnames=["method"])
+EXCEPTIONS = Counter("oka_isos_errors_total", "HTTP Exceptions", labelnames=["method"])
 
 @app.get("/metrics")
 async def get_metrics():

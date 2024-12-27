@@ -39,9 +39,7 @@ then
 fi
 
 ###
-[ "$HOSTTYPE" == "x86_64" ] && curl -L https://uefi.org/sites/default/files/resources/x64_DBXUpdate.bin -o ./apps/tftpd/depot/revocations.efi
-
-[ "$HOSTTYPE" == "aarch64" ] && curl -L https://uefi.org/sites/default/files/resources/arm64_DBXUpdate.bin -o ./apps/tftpd/depot/revocations.efi
+curl -L https://uefi.org/sites/default/files/resources/x64_DBXUpdate.bin -o ./apps/tftpd/depot/revocations.efi
 
 IID=$(podman build --platform=$PLATFORM ./apps/tftpd)
 if [ $? != 0 ]

@@ -27,8 +27,8 @@ subprocess.run(TFTPD_CMD, shell=True, check=True)
 
 app = FastAPI()
 
-REQUESTS = Counter("tftp_requests_total", "HTTP Requests", labelnames=["method"])
-EXCEPTIONS = Counter("tftp_errors_total", "HTTP Exceptions", labelnames=["method"])
+REQUESTS = Counter("oka_tftp_requests_total", "HTTP Requests", labelnames=["method"])
+EXCEPTIONS = Counter("oka_tftp_errors_total", "HTTP Exceptions", labelnames=["method"])
 
 @app.get("/metrics")
 async def get_metrics():

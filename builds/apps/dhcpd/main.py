@@ -76,8 +76,8 @@ os.unsetenv("DHCPD_PORT")
 
 app = FastAPI()
 
-REQUESTS = Counter("dhcp_requests_total", "HTTP Requests", labelnames=["method"])
-EXCEPTIONS = Counter("dhcp_errors_total", "HTTP Exceptions", labelnames=["method"])
+REQUESTS = Counter("oka_dhcp_requests_total", "HTTP Requests", labelnames=["method"])
+EXCEPTIONS = Counter("oka_dhcp_errors_total", "HTTP Exceptions", labelnames=["method"])
 
 @app.get("/metrics")
 async def get_metrics():

@@ -13,8 +13,8 @@ BASE_DIR="/srv/uvicorn/"
 
 app = FastAPI()
 
-REQUESTS = Counter("http_requests_total", "HTTP Requests", labelnames=["method"])
-EXCEPTIONS = Counter("http_errors_total", "HTTP Exceptions", labelnames=["method"])
+REQUESTS = Counter("oka_http_requests_total", "HTTP Requests", labelnames=["method"])
+EXCEPTIONS = Counter("oka_http_errors_total", "HTTP Exceptions", labelnames=["method"])
 
 class Repo(BaseModel):
     ins: Union[str, None] = None

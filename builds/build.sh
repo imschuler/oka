@@ -6,7 +6,7 @@
 # podman login registry.redhat.io
 
 DOCKER_ACCOUNT=imschuler
-VERSION=0.6.2
+VERSION=0.7.1
 
 case $HOSTTYPE in
   aarch64)
@@ -39,6 +39,10 @@ then
 fi
 
 ###
+[ "$HOSTTYPE" == "x86_64" ] && curl -L https://uefi.org/sites/default/files/resources/x64_DBXUpdate.bin -o ./apps/tftpd/depot/revocations.efi
+
+[ "$HOSTTYPE" == "aarch64" ] && curl -L https://uefi.org/sites/default/files/resources/arm64_DBXUpdate.bin -o ./apps/tftpd/depot/revocations.efi
+
 IID=$(podman build --platform=$PLATFORM ./apps/tftpd)
 if [ $? != 0 ]
 then

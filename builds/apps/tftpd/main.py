@@ -66,6 +66,8 @@ async def create_base(install_id: str, request: Request):
             shutil.copy("/depot/BOOTX64.EFI", BASE_DIR + install_id + "/efi/")
             shutil.copy("/depot/grubx64.efi", BASE_DIR + install_id + "/efi/")
 
+        shutil.copy("/depot/revocations.efi", BASE_DIR + install_id + "/efi/")
+
         if prefix == "suse":
             shutil.copy("/depot/linux", BASE_DIR + install_id + "/efi/")
             shutil.copy("/depot/initrd", BASE_DIR + install_id + "/efi/")

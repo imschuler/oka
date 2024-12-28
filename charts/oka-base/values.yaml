@@ -49,3 +49,7 @@ hosts:
       ip:
       user:
       password:
+# optional libvirt settings to initiate the PXE boot
+    libvirt:
+      ip:
+        vmname:

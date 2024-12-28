@@ -48,7 +48,7 @@ stringData:
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: {{ .Release.Name }} 
+  name: {{ .Release.Name }}-{{ $install_id }}
   labels:
     app.kubernetes.io/name: oka
     app.kubernetes.io/component: installer 
@@ -58,7 +58,6 @@ spec:
   parallelism: 1
   template:
     metadata:
-      name: install 
       labels:
         app.kubernetes.io/name: oka
         app.kubernetes.io/component: installer 

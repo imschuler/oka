@@ -6,6 +6,38 @@
   - install.yaml
   gather_facts: false
   tasks:
+  - name: Get NIC Info
+    community.general.redfish_info:
+      category: Systems
+      command: GetBiosAttributes
+      baseuri: "{{ irmc.ip }}"
+      username: "{{ irmc.user }}"
+      password: "{{ irmc.password }}"
+    register: redfish
+    ignore_errors: true
+    delegate_to: localhost
+    when: irmc.ip is defined
+
+  - name: set pxe_mac
+    set_fact:
+      pxe_mac: '{% if pxe.mac is defined %}{{ pxe.mac|upper|replace(":","")}}{% else %}{{ inet.mac|upper|replace(":","")}}{% endif %}'
+
+  - name: set id_query
+    set_fact:
+      query: 'bios_attribute.entries[0][1].BootSources[?contains(BootString,`"{{ pxe_mac }}"`)].StructuredBootString'
+
+  - name: print boot sources 
+    ansible.builtin.debug:
+      var: redfish.redfish_facts.bios_attribute.entries[0][1].BootSources  
+    when: irmc.ip is defined and not redfish.failed 
+
+  - name: save boot_string
+    set_fact:
+      boot_string: "{{ item }}"
+    loop: "{{ redfish.redfish_facts | community.general.json_query(query) }}"
+    ignore_errors: true
+    when: irmc.ip is defined and not redfish.failed 
+
   - name: Set one-time PXE boot device via redfish
     community.general.redfish_command:
       category: Systems
@@ -14,10 +46,46 @@
       baseuri: "{{ irmc.ip }}"
       username: "{{ irmc.user }}"
       password: "{{ irmc.password }}"
-    register: redfish
-    ignore_errors: true
     delegate_to: localhost
-    when: irmc.ip is defined
+    when: irmc.ip is defined and boot_string is not defined
+
+  - name: assemble JSON for boot
+    set_fact:
+      profile: |
+        {
+          "Server": {
+            "@Version": "1.00",
+            "@ErrorBehaviour": "Stop",
+            "SystemConfig": {
+              "@Processing": "execute",
+              "BiosConfig": {
+                "@Version": "1.02",
+                "BiosBootOrder": {
+                  "BootOrderApply": false,
+                  "BootOrderReset": false,
+                  "NextBootDevice": "{{ boot_string }}"
+                }
+              }
+            }
+          }
+        }
+    when: irmc.ip is defined and boot_string is defined
+      
+  - name: boot using profile if boot_string has been found
+    uri:
+      url: https://{{ irmc.ip }}/rest/v1/Oem/eLCM/ProfileManagement/set
+      url_username: "{{ irmc.user }}"
+      url_password: "{{ irmc.password }}"
+      validate_certs: false
+      force_basic_auth: true
+      headers:
+        Accept: "application/json"
+      status_code: [ 200, 202 ]
+      method: POST
+      body_format: json
+      body: "{{ profile | to_json }}"
+    delegate_to: localhost
+    when: irmc.ip is defined and boot_string is defined
 
   - name: Forced Restart of system 
     community.general.redfish_command:
@@ -29,7 +97,7 @@
     register: restart
     ignore_errors: true
     delegate_to: localhost
-    when: irmc.ip is defined and not redfish.failed
+    when: irmc.ip is defined and not redfish.failed and boot_string is not defined
 
   - name: Power on system
     community.general.redfish_command:
@@ -39,7 +107,7 @@
       username: "{{ irmc.user }}"
       password: "{{ irmc.password }}"
     delegate_to: localhost
-    when: irmc.ip is defined and not redfish.failed and restart.failed
+    when: irmc.ip is defined and not redfish.failed and boot_string is not defined and restart.failed
 
   - name: set PXE boot via IPMI
     community.general.ipmi_boot:

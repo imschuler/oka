@@ -1,0 +1,49 @@
+#version=RHEL8
+# Use graphical install
+graphical
+
+# Keyboard layouts
+keyboard --vckeymap=de --xlayouts='de'
+
+# System language
+lang {{ locale }}
+
+ignoredisk --only-use={{ disk1 }},{{ disk2 }}
+clearpart --drives={{ disk1 }},{{ disk2 }} --all --initlabel
+zerombr
+
+part /boot/efi --size=512 --ondisk={{ disk1 }} --fstype=efi
+part efi --size=512 --ondisk={{ disk2 }} --fstype=efi
+				
+part raid.11 --size=1 --grow --ondisk={{ disk1 }}
+part raid.12 --size=1 --grow --ondisk={{ disk2 }}
+				
+raid / --level=1 --device=rhel-root --label=rhel-root raid.11 raid.12
+
+# System timezone
+timezone America/New_York
+
+# Root password
+rootpw {{ root_password }}
+
+# authorized_key
+sshkey --username=root "{{ pub_key }}"
+
+%addon com_redhat_kdump --disable --reserve-mb='auto'
+%end
+
+%packages
+{% if packages %}
+{{ packages }}
+{% endif %}
+%end
+
+%pre
+curl "http://{{ httpd_ip_ext }}/{{ install_id }}/pre.sh" | bash -
+%end
+
+%post --nochroot --log=/mnt/sysimage/root/ks-post.log
+curl "http://{{ httpd_ip_ext }}/{{ install_id }}/post.sh" | bash -
+%end
+
+reboot

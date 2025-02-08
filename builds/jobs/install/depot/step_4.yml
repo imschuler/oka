@@ -1,0 +1,25 @@
+- name: wating until post installation is done
+  hosts: all
+  vars_files:
+  - osid.yaml
+  - host.yaml
+  - install.yaml
+  gather_facts: false
+  tasks:
+  - name: set subnets variable
+    set_fact:
+      subnetns: "{{ lookup('ansible.builtin.env', 'SUBNETNS') }}"
+
+  - name: wait for post script to complete 
+    uri:
+      url: http://httpd.{{ subnetns }}:8080/{{ install_id }}/post
+      return_content: true
+    register: post
+    until: post.status == 200 
+    retries: 60
+    delay: 10
+    delegate_to: localhost
+
+  - name: print post message
+    debug:
+      msg: "{{ post.content }}"

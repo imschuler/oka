@@ -1,0 +1,179 @@
+# on RHEL the root fs is mounted here
+ROOT_MNT=/mnt/sysimage
+
+interfaces()
+{
+  MAC=""
+  IP=""
+  COUNT=0
+
+  printf '[ '
+  while read LINE
+  do
+    echo $LINE | grep "link/ether " &>/dev/null
+    if [ $? -eq 0 ]
+    then
+      MAC=$(echo $LINE | sed 's#^link/ether *\([0-9a-f:]*\) .*$#\1#')
+    fi
+
+    echo $LINE | grep "inet " &>/dev/null
+    if [ $? -eq 0 ]
+    then
+      IP=$(echo $LINE | sed 's#^inet *\([0-9.]*\).*$#\1#')
+    fi
+
+    echo $LINE | grep "^[0-9]*:" &>/dev/null
+    if [ $? -eq 0 ]
+    then
+      if [ "$MAC" != "" ] && [ "$IP" != "" ]
+      then
+        [ $COUNT -ne 0 ] && printf ', '
+        COUNT=$(($COUNT + 1))
+      fi
+      [ "$MAC" != "" ] && [ "$IP" != "" ] && printf '{ "mac": "%s", "ip": "%s" }' $MAC $IP
+      MAC=""
+      IP=""
+    fi
+  done < <(ip addr show)
+ 
+  [ "$MAC" != "" ] && [ "$IP" != "" ] && [ $COUNT -ne 0 ] && printf ', '
+  [ "$MAC" != "" ] && [ "$IP" != "" ] && printf '{ "mac": "%s", "ip": "%s" }' $MAC $IP
+  printf ' ]'
+}
+ 
+get_pxe_bootnum()
+{
+  PXE_MAC=$(echo "{{ pxe_mac }}" | sed 's/://g')
+  PXE_BOOTNUM=
+  while read LINE
+  do
+    echo $LINE | grep $PXE_MAC
+    if [ $? -eq 0 ]
+    then
+      PXE_BOOTNUM=$(echo $LINE | cut -d' ' -f1 | sed 's/^Boot\([0-9A-F]*\).*/\1/')
+    fi
+  done < <(efibootmgr -v) 2>&1 > /dev/null
+  echo $PXE_BOOTNUM
+}
+
+get_efi_bootnum()
+{
+  EFI_PART=$(df $ROOT_MNT/boot/efi | sed '1d' | cut -f1 -d' ')
+  UUID=$(blkid $EFI_PART | sed 's/.*PARTUUID="\([^"]*\).*/\1/')
+
+  # get the bootnum for /boot/etfi
+  EFI_BOOTNUM=
+  while read LINE
+  do
+    echo $LINE | grep $UUID
+    if [ $? -eq 0 ]
+    then
+      EFI_BOOTNUM=$(echo $LINE | cut -d' ' -f1 | sed 's/^Boot\([0-9A-F]*\).*/\1/')
+    fi
+  done < <(efibootmgr -v) 2>&1 > /dev/null
+  echo $EFI_BOOTNUM
+}
+
+get_new_bootorder()
+{
+  BOOT_ORDER=
+  while read LINE
+  do
+    echo $LINE | grep ^BootOrder
+    if [ $? -eq 0 ]
+    then
+      BOOT_ORDER=$(echo $LINE | cut -d':' -f2 | sed 's/ //g')
+    fi
+  done < <(efibootmgr -v) 2>&1 > /dev/null
+
+  EFI_BOOTNUM=$(get_efi_bootnum)
+  if [ "$EFI_BOOTNUM" != "" ]
+  then
+    # remove EFI_BOOTNUM from BOOT_ORDER
+    BOOT_ORDER=$(echo $BOOT_ORDER | sed "s/,$EFI_BOOTNUM,/,/")
+    BOOT_ORDER=$(echo $BOOT_ORDER | sed "s/$EFI_BOOTNUM,//")
+    BOOT_ORDER=$(echo $BOOT_ORDER | sed "s/,$EFI_BOOTNUM//")
+    BOOT_ORDER="$EFI_BOOTNUM,$BOOT_ORDER"
+  fi
+
+  PXE_BOOTNUM=$(get_pxe_bootnum)
+  if [ "$PXE_BOOTNUM" != "" ]
+  then
+    # remove PXE_BOOTNUM from BOOT_ORDER
+    BOOT_ORDER=$(echo $BOOT_ORDER | sed "s/,$PXE_BOOTNUM,/,/")
+    BOOT_ORDER=$(echo $BOOT_ORDER | sed "s/$PXE_BOOTNUM,//")
+    BOOT_ORDER=$(echo $BOOT_ORDER | sed "s/,$PXE_BOOTNUM//")
+    BOOT_ORDER="$PXE_BOOTNUM,$BOOT_ORDER"
+  fi
+
+  echo $BOOT_ORDER
+}
+
+remove_bootentries()
+{
+  PXE_BOOTNUM=$(get_pxe_bootnum)
+  EFI_BOOTNUM=$(get_efi_bootnum)
+
+  while read LINE
+  do
+    echo $LINE | grep '\sHD([0-9]\|\sPXE\s'
+    if [ $? -eq 0 ]
+    then
+      BOOTNUM=$(echo $LINE | sed 's/^Boot\([0-9A-F]*\).*/\1/')
+      if [ "$BOOTNUM" != "$EFI_BOOTNUM" ] && [ "$BOOTNUM" != "$PXE_BOOTNUM" ]
+      then
+        efibootmgr -B -b $BOOTNUM
+      fi
+    fi
+  done < <(efibootmgr -v) 2>&1 > /dev/null
+}
+
+##
+##
+
+mkdir $ROOT_MNT/root/oka
+
+DEVICE=$(df $ROOT_MNT/root | sed '1d' | cut -d' ' -f1)
+UUID=$(lsblk -o UUID $DEVICE | sed '1d')
+INTERFACES=$(interfaces)
+
+# in RHEL 9 root login is by default not allowed
+sed 's/^#\?PermitRootLogin.*/PermitRootLogin yes/' -i $ROOT_MNT/etc/ssh/sshd_config
+
+printf "installed by Oka using install_id : {{ install_id }}\n" > $ROOT_MNT/root/oka/issue 
+cat /proc/cmdline > $ROOT_MNT/root/oka/cmdline
+curl http://{{ httpd_ip_ext }}/{{ install_id }}/ks.cfg -o $ROOT_MNT/root/oka/ks.cfg
+
+# on UEFI systems set bootorder with PXE / EFI. This should be done by the OS, but ..
+PXE_BOOTNUM=
+if [ -e /usr/sbin/efibootmgr ]
+then
+  efibootmgr -v
+
+  PXE_BOOTNUM=$(get_pxe_bootnum)
+  echo "PXE_BOOTNUM = $PXE_BOOTNUM"
+
+  EFI_BOOTNUM=$(get_efi_bootnum)
+  echo "EFI_BOOTNUM = $EFI_BOOTNUM"
+
+  if [ "$EFI_BOOTNUM" == "" ]
+  then
+    EFI_DEV=$(df $ROOT_MNT/boot/efi | sed '1d' | cut -d' ' -f1)
+    EFI_DISK=$(echo $EFI_DEV | sed 's#\([/a-z]*\)\([0-9]*\)#\1#')
+    EFI_PART=$(echo $EFI_DEV | sed 's#\([/a-z]*\)\([0-9]*\)#\2#')
+    efibootmgr -c -d $EFI_DISK -p $EFI_PART -L {{ osid }} -l "\EFI\REDHAT\SHIM.EFI"
+  fi 
+
+  remove_bootentries
+
+  BOOT_ORDER=$(get_new_bootorder)
+  echo "new boot order: $BOOT_ORDER"
+  efibootmgr -o $BOOT_ORDER
+
+  echo "### Settings ###"
+  blkid
+  efibootmgr -v
+fi
+
+JSON="{ \"uuid\": \"$UUID\", \"interfaces\": $INTERFACES, \"pxe_bootnum\": \"$PXE_BOOTNUM\" }"
+curl -XPUT -H "Content-Type: application/json" -d "$JSON" http://{{ httpd_ip_ext }}/{{ install_id }}/post

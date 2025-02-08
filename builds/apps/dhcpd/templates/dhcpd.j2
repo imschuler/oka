@@ -1,0 +1,14 @@
+
+option arch code 93 = unsigned integer 16; # RFC4578
+
+pid-file-name "/var/run/dhcpd.pid";
+
+subnet {{ subnet }} netmask {{ netmask }} {
+  pool {
+    range {{ range_begin }} {{ range_end }};
+  }
+}
+
+group {
+#  
+}

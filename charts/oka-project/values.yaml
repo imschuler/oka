@@ -1,0 +1,15 @@
+# the subnet namespace the project refers to:
+subnetns:
+
+# an osid describes the installation media ( and location ) to be used
+# note that some packages must be installed to get the install server running ( which is based on Ansible )
+# some OS ( SLES 15 SP1 ) need several repositories, so repos is an array
+osids:
+  - osid:
+    repos: 
+# opional product i.e. SLES
+    product:
+# optional array of patterns ( SUSE )
+    patterns:
+# mandatory array of packages to get Ansible running
+    packages:

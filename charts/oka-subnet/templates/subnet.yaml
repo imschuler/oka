@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: subnet
+  labels:
+    app.kubernetes.io/name: oka
+data:
+  {{ $namespace := .Release.Namespace }}
+  {{- with .Values.subnet }}
+  subnet: |-
+    subnet:           {{ .subnet }}
+    netmask:          {{ .netmask }}
+    range_begin:      {{ .range_begin }}
+    range_end:        {{ .range_end }}
+    tftpd_ip_ext:     {{ range ( lookup "v1" "Service" $namespace "tftpd-ext" ).status.loadBalancer.ingress -}}{{ quote .ip }}{{- end }}
+    httpd_ip_ext:     {{ range ( lookup "networking.k8s.io/v1" "Ingress" $namespace "httpd-ext" ).status.loadBalancer.ingress -}}{{ quote .ip }}{{- end }}
+    domain:           {{ .domain }}
+    {{- if .smt_server }}
+    smt_server:       {{ .smt_server }}
+    smt_fingerprint:  {{ .smt_fingerprint }}
+    {{- end }}
+    {{- if .proxy_host }}
+    proxy_host:       {{ .proxy_host }}
+    proxy_port:       {{ .proxy_port }}
+    {{- end }}
+  {{- end }}

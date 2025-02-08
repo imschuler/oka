@@ -1,0 +1,43 @@
+
+SERIAL=""
+PRODUCT=""
+DISK=""
+check=/bin/false
+
+while read line
+do
+  echo $line | egrep "^ *$" &>/dev/null
+  if [ $? -eq 0 ]
+  then
+    if [ "$PRODUCT" != "" ]
+    then
+       [ "$SERIAL" == "Not" ] && SERIAL=""
+       break
+    fi
+  fi
+  
+  [ check ] && echo $line | grep "Serial Number:" &>/dev/null
+  if [ $? -eq 0 ]
+  then
+    SERIAL=$(echo $line | sed "s/ *Serial Number: *\([a-zA-Z0-9]*\).*/\1/")
+  fi
+
+  [ check ] && echo $line | grep "Product Name:" &>/dev/null
+  if [ $? -eq 0 ]
+  then
+    PRODUCT=$(echo $line | sed "s/ *Product Name: *\([-_a-zA-Z0-9]*\).*/\1/")
+  fi
+
+  echo $line | grep "System Information" &>/dev/null
+  if [ $? -eq 0 ]
+  then
+    PRODUCT=""
+    SERIAL=""
+    check=/bin/true
+  fi
+done < <(dmidecode)
+
+ls {{ disk1 }} || exit -1
+ls {{ disk2 }} || exit -1
+
+curl -XPUT -H "Content-Type: application/json" -d "{ \"serial_number\": \"$SERIAL\", \"product\": \"$PRODUCT\", \"interfaces\": [] }" http://{{ httpd_ip_ext }}/{{ install_id }}/pre

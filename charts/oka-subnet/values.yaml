@@ -1,0 +1,44 @@
+# a single subnet must be specified in each K8s namespace
+# a certificate may be specified, if there is an HTTP  proxy to the Internet with its own certificate
+subnet:
+  subnet:
+  netmask:
+  range_begin:
+  range_end:
+  domain:
+# optional settings for an SMT server
+  smt_server:
+  smt_fingerprint:
+# optional HTTP proxy with optional certificate
+  proxy_host:
+  proxy_port:
+
+# note that host may be any string, host_name will get the hostname
+# that way different disks may be configured for the same host_name
+hosts:
+  - host:
+    locale:
+    # either a single disk or swraid
+    disk:
+    swraid:
+    hostname:
+    timezone:
+# optional MAC and IP address of PXE interface
+    pxe:
+      ip:
+      mac:
+    inet:
+      mac:
+# optional IP address, DNS and ( default ) gateway to the Internet
+      ip:
+      dns:
+      gateway:
+# optional iRMC settings to initiate the PXE boot
+    irmc:
+      ip:
+      user:
+      password:
+# optional libvirt settings to initiate the PXE boot
+    libvirt:
+      ip:
+        vmname:

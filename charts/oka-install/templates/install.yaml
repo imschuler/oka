@@ -1,0 +1,174 @@
+{{- $install_id := randAlphaNum 8 | lower -}}
+{{- $namespace := .Release.Namespace }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: install-{{ $install_id }}
+  labels:
+    app.kubernetes.io/name: oka
+immutable: true
+data:
+  {{- with .Values }}
+  install: |-
+    osid:                 {{ .osid }}
+    host:                 {{ .host }}
+    install_id:           {{ $install_id }}
+    {{- if .suse_activation_key }}
+    suse_activation_key:  {{ .suse_activation_key }}
+    {{- end }}
+    {{- if .redhat_pool_id }}
+    redhat_pool_id:       {{ .redhat_pool_id }}
+    {{- end }}
+  {{- end }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: inventory-{{ $install_id }}
+  labels:
+    app.kubernetes.io/name: oka
+immutable: true
+data:
+  inventory: |- 
+    {{ .Values.host }}
+---
+apiVersion: v1
+kind: Secret 
+metadata:
+  name: access-{{ $install_id }}
+  labels:
+    app.kubernetes.io/name: oka
+immutable: true
+stringData:
+  access: |
+  {{- range $key, $value :=  ( lookup "v1" "Secret" $namespace "access" ).data }}
+    {{ $key }}: {{ $value | b64dec | trim | quote }}
+  {{- end }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Release.Name }}-{{ $install_id }}
+  labels:
+    app.kubernetes.io/name: oka
+    app.kubernetes.io/component: installer 
+spec:
+  completionMode: Indexed
+  completions: 10
+  parallelism: 1
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: oka
+        app.kubernetes.io/component: installer 
+    spec:
+      restartPolicy: Never
+      volumes:
+      - name: host
+        configMap:
+          name: hosts
+          items:
+          - key: "{{ .Values.host }}"
+            path: host.yaml
+      - name: osid
+        configMap:
+          name: osids
+          items:
+          - key: "{{ .Values.osid }}"
+            path: osid.yaml
+      - name: subnet
+        configMap:
+          name: subnet
+          items:
+          - key: subnet 
+            path: subnet.yaml
+      - name: install 
+        configMap:
+          name: install-{{ $install_id  }}
+          items:
+          - key: install 
+            path: install.yaml
+      - name: etc-hosts
+        configMap:
+          name: etc-hosts
+          items:
+          - key: "{{ .Values.host }}"
+            path: hosts 
+      - name: id-rsa 
+        secret:
+          secretName: access 
+          defaultMode: 0600
+          items:
+          - key: id_rsa 
+            path: id_rsa
+      - name: access
+        secret:
+          secretName: access-{{ $install_id }}
+          items:
+          - key: access
+            path: access.yaml
+      - name: inventory
+        configMap:
+          name: inventory-{{ $install_id  }}
+          items:
+          - key: inventory 
+            path: inventory 
+      - name: ansible-tasks
+        configMap:
+           name: ansible-tasks
+           optional: true
+      - name: ansible-templates
+        configMap:
+           name: ansible-templates
+           optional: true
+      - name: ansible-vars
+        configMap:
+           name: ansible-vars
+           optional: true
+      containers:
+      - image: imschuler/oka-install:{{ .Chart.Version }}
+        imagePullPolicy: Always
+        name: oka 
+        env:
+        - name: SUBNETNS
+          valueFrom:
+            configMapKeyRef:
+              name: subnetns
+              key: subnetns
+        volumeMounts:
+        - name: host
+          mountPath: /depot/host.yaml
+          subPath: host.yaml
+        - name: osid
+          mountPath: /depot/osid.yaml
+          subPath: osid.yaml
+        - name: subnet
+          mountPath: /depot/subnet.yaml
+          subPath: subnet.yaml
+        - name: install
+          mountPath: /depot/install.yaml
+          subPath: install.yaml 
+        - name: etc-hosts
+          mountPath: /etc/hosts
+          subPath: hosts 
+        - name: id-rsa
+          mountPath: /root/.ssh/id_rsa
+          subPath: id_rsa
+        - name: inventory
+          mountPath: /depot/inventory
+          subPath: inventory
+        - name: access
+          mountPath: /depot/access.yaml
+          subPath: access.yaml
+        {{- if ( lookup "v1" "ConfigMap" $namespace "ansible-tasks" ) }}
+        - name: ansible-tasks
+          mountPath: /depot/ansible-tasks
+        {{- end }}
+        {{- if ( lookup "v1" "ConfigMap" $namespace "ansible-templates" ) }}
+        - name: ansible-templates
+          mountPath: /depot/ansible-tasks/templates
+        {{- end }}
+        {{- if ( lookup "v1" "ConfigMap" $namespace "ansible-vars" ) }}
+        - name: ansible-vars
+          mountPath: /depot/ansible-vars
+        {{- end }}

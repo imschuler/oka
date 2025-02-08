@@ -1,0 +1,80 @@
+---
+- name: get http_proxy
+  shell: grep ^HTTP_PROXY /etc/sysconfig/proxy | sed s'/HTTP_PROXY=\([^ ]*\).*/\1/' | tr -d '"'
+  register: http_proxy
+
+- name: get https_proxy
+  shell: grep ^HTTPS_PROXY /etc/sysconfig/proxy | sed s'/HTTPS_PROXY=\([^ ]*\).*/\1/' | tr -d '"'
+  register: https_proxy
+
+- name: extract SLES version
+  shell: grep ^VERSION_ID /etc/os-release | sed s'/VERSION_ID=\([^ ]*\).*/\1/' | tr -d '"'
+  register: sles_id
+
+- name: activate channels
+  command: SUSEConnect -p {{ item }}
+  loop:
+  - sle-module-containers/{{ sles_id.stdout }}/x86_64
+  environment:
+  - https_proxy: "{{ https_proxy.stdout }}"
+
+- name: install containerd
+  zypper:
+    name: containerd
+    state: present
+  environment:
+    - http_proxy: "{{ http_proxy.stdout }}"
+    - https_proxy: "{{ https_proxy.stdout }}"
+
+- name: create systemd drop-in dir for containerd
+  file:
+    path: /etc/systemd/system/containerd.service.d/
+    state: directory
+
+- name: configure proxy for containerd service
+  template:
+    src: proxy.j2
+    dest: /etc/systemd/system/containerd.service.d/override.conf
+
+- name: configure config for containerd service
+  command: containerd config default
+  register: config
+
+- name: generate config.toml
+  copy:
+    dest: /etc/containerd/config.toml
+    content: "{{ config.stdout }}"
+
+- name: customize config.toml
+  lineinfile:
+    path: /etc/containerd/config.toml
+    regexp: "SystemdCgroup ="
+    line: SystemdCgroup = true
+
+- name: customize config.toml
+  lineinfile:
+    path: /etc/containerd/config.toml
+    regexp: "sandbox_image ="
+    line: sandbox_image = "registry.k8s.io/pause:3.9"
+
+- name: start containerd
+  systemd:
+    name: containerd
+    state: started
+    enabled: true
+    daemon_reload: true
+
+- name: install further packages
+  zypper:
+    name: "{{ item }}"
+    state: present
+  loop:
+    - iptables
+    - ebtables
+    - socat
+    - ethtool
+    - conntrack-tools
+    - apparmor-parser
+  environment:
+    - http_proxy: "{{ http_proxy.stdout }}"
+    - https_proxy: "{{ https_proxy.stdout }}"

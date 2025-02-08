@@ -1,0 +1,117 @@
+- name: basic host configuration
+  hosts: all
+  vars_files:
+  - subnet.yaml
+  - osid.yaml
+  - host.yaml
+  - install.yaml
+  - access.yaml
+  vars:
+    proxy_env0:
+      https_proxy: "http://{{ proxy_host }}:{{ proxy_port }}"
+      http_proxy: "http://{{ proxy_host }}:{{ proxy_port }}"
+    proxy_env: >-
+      {% if proxy_host is defined %}{{ proxy_env0 }}{% endif %}
+    
+  tasks:
+  - command: zypper mr -da
+    when: ansible_facts['distribution'] == "SLES"
+
+  - name: set hostname
+    hostname:
+      name: "{{ hostname }}"
+
+  - name: set fqdn in /etc/hosts
+    lineinfile:
+      line: "127.0.1.1       {{hostname}}.{{domain}} {{hostname}}"
+      path: /etc/hosts
+      state: present
+
+  - name: set timezone
+    timezone:
+      name: "{{ timezone }}"
+
+  - name: make sure HTTP proxy certificate is present Red Hat
+    block:
+      - file:
+          path: /etc/pki/ca-trust/source/anchors/forcepoint.pem
+          state: touch
+
+      - lineinfile:
+          line: "{{ certificate }}"
+          path: /etc/pki/ca-trust/source/anchors/forcepoint.pem 
+          state: present
+
+      - shell: update-ca-trust 
+    when: certificate is defined and ansible_facts['distribution'] == "RedHat"
+
+  - name: make sure HTTP proxy certificate is present SUSE
+    block:
+      - file:
+          path: /etc/pki/trust/anchors/forcepoint.pem 
+          state: touch
+
+      - lineinfile:
+          line: "{{ certificate }}"
+          path: /etc/pki/trust/anchors/forcepoint.pem
+          state: present
+
+      - shell: update-ca-certificates
+    when: certificate is defined and ansible_facts['distribution'] == "SLES"
+
+  - name: register RHEL servers if Pool IDs present
+    block:
+      - name: register at Red Hat / RHEL
+        redhat_subscription:
+          username: "{{ redhat_username }}"
+          password: "{{ redhat_password }}"
+          server_proxy_hostname: "{{ proxy_host }}"
+          server_proxy_port: "{{ proxy_port }}"
+          pool_ids: "{{ redhat_pool_id }}"
+    when: redhat_pool_id is defined and ansible_facts['distribution'] == "RedHat"
+
+  - block:
+      - name: check whether system is registered at SUSE
+        shell: SUSEConnect -s | sed 's/.*"status":"\([a-zA-Z]*\).*/\1/'
+        environment: "{{ proxy_env }}"
+        changed_when: false
+
+      - name: register at SUSE
+        command: SUSEConnect -r {{ suse_activation_key }} -e {{ email_addr }}
+        environment: "{{ proxy_env }}"
+    when: suse_activation_key is defined and ansible_facts['distribution'] == "SLES"
+
+  - block:
+      - name: download clientSetup4SMT.sh script
+        get_url:
+          url: http://{{ smt_server }}/repo/tools/clientSetup4SMT.sh
+          dest: /tmp
+
+      - name: register with SMT server
+        command: sh /tmp/clientSetup4SMT.sh --host {{ smt_server }} --fingerprint {{ smt_fingerprint }} --yes
+    when: suse_activation_key is undefined and smt_server is defined and ansible_facts['distribution'] == "SLES"
+
+  - block:
+      - name: set HTTP_PROXY in /etc/sysconfig/proxy
+        lineinfile:
+          regexp: "^HTTP_PROXY"
+          line: 'HTTP_PROXY="http://{{proxy_host}}:{{proxy_port}}"'
+          path: /etc/sysconfig/proxy
+
+      - name: set HTTPS_PROXY
+        lineinfile:
+          regexp: "^HTTPS_PROXY"
+          line: 'HTTPS_PROXY="http://{{proxy_host}}:{{proxy_port}}"'
+          path: /etc/sysconfig/proxy
+
+      - name: enable proxy if access to SCC is needed
+        lineinfile:
+          regexp: "^PROXY_ENABLED"
+          line: 'PROXY_ENABLED="yes"'
+          path: /etc/sysconfig/proxy
+        when: suse_activation_key|default('') != ''
+    when: proxy_host is defined and ansible_facts['os_family'] == "Suse"
+
+  - name: reboot the server
+    reboot:
+      reboot_timeout: 1800

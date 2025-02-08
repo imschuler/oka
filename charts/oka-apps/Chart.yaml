@@ -1,0 +1,7 @@
+apiVersion: v2
+name: oka-apps
+version: 0.8.1
+description: An install server for PRIMERGY servers
+maintainers:
+  - name:  Michael Schuler
+    email: contact@michaelschuler.net

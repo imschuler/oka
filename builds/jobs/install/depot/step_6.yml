@@ -1,0 +1,116 @@
+- name: setup network on the server
+  hosts: all 
+  vars_files:
+  - subnet.yaml
+  - osid.yaml
+  - host.yaml
+  - install.yaml
+  vars:
+    iface_inet: >
+      {% for iface in ansible_facts.interfaces %}
+        {% if inet.mac is defined and inet.mac == lookup('vars', 'ansible_' + iface).macaddress|default('') %}
+          {{ iface }}
+        {% endif %}
+      {% endfor %}
+    iface_pxe: >
+      {% for iface in ansible_facts.interfaces %}
+        {% if pxe.mac == lookup('vars', 'ansible_' + iface).macaddress|default('') %}
+          {{ iface }}
+        {% endif %}
+      {% endfor %}
+    net_mask: "{{ subnet }}/{{ netmask }}"
+    network_connections_1:
+      - name: oka_pxe
+        type: ethernet
+        interface_name: "{{ iface_pxe | trim }}"
+        mac: "{{ pxe.mac }}"
+        autoconnect: true
+        state: up
+        ip:
+          address:
+          - "{{ pxe.ip }}/{{ net_mask | ipaddr('prefix') }}"
+      - name: oka_inet
+        type: ethernet
+        interface_name: "{{ iface_inet | trim }}"
+        mac: "{{ inet.mac }}"
+        autoconnect: true
+        state: up
+        ip:
+          dhcp4: true
+    network_connections_2:
+      - name: oka_pxe
+        type: ethernet
+        interface_name: "{{ iface_pxe | trim }}"
+        mac: "{{ pxe.mac }}"
+        autoconnect: true
+        state: up
+        ip:
+          address:
+            - "{{ pxe.ip }}/{{ net_mask | ipaddr('prefix') }}"
+      - name: oka_inet
+        type: ethernet
+        interface_name: "{{ iface_inet | trim }}"
+        mac: "{{ inet.mac }}"
+        autoconnect: true
+        state: up
+        ip:
+          address:
+          - "{{ inet.ip }}/{{  net_mask | ipaddr('prefix') }}"
+          gateway4: "{{ inet.gateway }}"
+          dns: "{{ inet.dns }}"
+          dns_search: "{{ domain }}"
+    network_connections_3:
+      - name: oka_inet
+        type: ethernet
+        interface_name: "{{ iface_inet | trim }}"
+        mac: "{{ inet.mac }}"
+        autoconnect: true
+        state: up
+        ip:
+          address:
+          - "{{ inet.ip }}/{{  net_mask | ipaddr('prefix') }}"
+          gateway4: "{{ inet.gateway }}"
+          dns: "{{ inet.dns }}"
+          dns_search: "{{ domain }}"
+  roles:
+    - role: rhel-system-roles.network
+      vars:
+        network_connections: "{{ network_connections_1 }}"
+      when: ansible_facts['os_family'] == 'RedHat' and pxe.mac is defined and inet.ip is not defined
+    - role: rhel-system-roles.network
+      vars:
+        network_connections: "{{ network_connections_2 }}"
+      when: ansible_facts['os_family'] == 'RedHat' and pxe.mac is defined and inet.ip is defined
+    - role: rhel-system-roles.network
+      vars:
+        network_connections: "{{ network_connections_3 }}"
+      when: ansible_facts['os_family'] == 'RedHat' and pxe.mac is not defined
+    - role: suse_network
+      vars:
+        network_connections: "{{ network_connections_1 }}"
+      when: ansible_facts['os_family'] == 'Suse' and pxe.mac is defined and inet.ip is not defined
+    - role: suse_network
+      vars:
+        network_connections: "{{ network_connections_2 }}"
+      when: ansible_facts['os_family'] == 'Suse' and pxe.mac is defined and inet.ip is defined 
+    - role: suse_network
+      vars:
+        network_connections: "{{ network_connections_3 }}"
+      when: ansible_facts['os_family'] == 'Suse' and pxe.mac is not defined
+
+  tasks:
+    - name: restart the network with changed interface names 
+      command:
+        argv:
+        - sh
+        - -c
+        - systemctl stop network; systemctl restart systemd-udev-trigger; systemctl restart systemd-udev-settle; systemctl start network
+      async: 60
+      poll: 0
+      when: ansible_facts['os_family'] == 'Suse'
+
+    - name: wait for network
+      wait_for_connection:
+        timeout: 60
+        connect_timeout: 10
+      when: ansible_facts['os_family'] == 'Suse'

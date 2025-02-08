@@ -1,0 +1,64 @@
+---
+- name: get https_proxy
+  shell: grep ^HTTPS_PROXY /etc/sysconfig/proxy | sed s'/HTTPS_PROXY=\([^ ]*\).*/\1/' | tr -d '"'
+  register: https_proxy
+
+- name: get kubernetes version
+  command: curl -sSL https://dl.k8s.io/release/stable.txt
+  environment:
+    - https_proxy: "{{ https_proxy.stdout }}"
+  register: stable
+
+- set_fact:
+    kubevers: "{% if kubevers is defined %}{{ kubevers }}{% else %}{{ stable.stdout }}{% endif %}"
+
+- debug:
+    var: kubevers
+
+- name: download kubeadm, kubelet and kubectl
+  shell:
+    cmd: curl -L --remote-name-all https://dl.k8s.io/release/{{ kubevers }}/bin/linux/{{ arch }}/{kubeadm,kubelet,kubectl}
+    chdir: /usr/local/bin
+  environment:
+    - https_proxy: "{{ https_proxy.stdout }}"
+
+- name: make kubeadm, kubelet and kubectl executable
+  file:
+    path: /usr/local/bin/{{ item }}
+    mode: 0755
+  loop:
+    - kubeadm
+    - kubelet
+    - kubectl
+
+- name: donwload kubelet service
+  shell: curl -sSL "https://raw.githubusercontent.com/kubernetes/release/{{ kubelet_service_version }}/cmd/kubepkg/templates/latest/deb/kubelet/lib/systemd/system/kubelet.service" | sed "s:/usr/bin:/usr/local/bin:g" > /etc/systemd/system/kubelet.service
+  environment:
+    - https_proxy: "{{ https_proxy.stdout }}"
+
+- name: create /etc/systemd/system/kubelet.service.d
+  file:
+    path: /etc/systemd/system/kubelet.service.d
+    state: directory
+
+- name: and drop-in replacement
+  shell: curl -sSL "https://raw.githubusercontent.com/kubernetes/release/{{ kubelet_service_version }}/cmd/kubepkg/templates/latest/deb/kubeadm/10-kubeadm.conf" | sed "s:/usr/bin:/usr/local/bin:g" > /etc/systemd/system/kubelet.service.d/10-kubeadm.conf
+  environment:
+    - https_proxy: "{{ https_proxy.stdout }}"
+
+- name: enable and start kubelet service
+  systemd:
+    name: kubelet
+    state: started
+    enabled: true
+    daemon_reload: true
+
+- name: remove swap in /etc/fstab
+  lineinfile:
+    path: /etc/fstab
+    regexp: " swap "
+    state: absent
+
+- name: reboot
+  reboot:
+    reboot_timeout: "{{ reboot_timeout }}"

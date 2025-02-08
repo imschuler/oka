@@ -1,0 +1,157 @@
+- name: initiate PXE boot
+  hosts: all 
+  vars_files:
+  - osid.yaml
+  - host.yaml
+  - install.yaml
+  gather_facts: false
+  tasks:
+  - name: Get NIC Info
+    community.general.redfish_info:
+      category: Systems
+      command: GetBiosAttributes
+      baseuri: "{{ irmc.ip }}"
+      username: "{{ irmc.user }}"
+      password: "{{ irmc.password }}"
+    register: redfish
+    ignore_errors: true
+    delegate_to: localhost
+    when: irmc.ip is defined
+
+  - name: set pxe_mac
+    set_fact:
+      pxe_mac: '{% if pxe.mac is defined %}{{ pxe.mac|upper|replace(":","")}}{% else %}{{ inet.mac|upper|replace(":","")}}{% endif %}'
+
+  - name: set id_query
+    set_fact:
+      query: 'bios_attribute.entries[0][1].BootSources[?contains(BootString,`"{{ pxe_mac }}"`)].StructuredBootString'
+
+  - name: print boot sources 
+    ansible.builtin.debug:
+      var: redfish.redfish_facts.bios_attribute.entries[0][1].BootSources  
+    when: irmc.ip is defined and not redfish.failed 
+
+  - name: save boot_string
+    set_fact:
+      boot_string: "{{ item }}"
+    loop: "{{ redfish.redfish_facts | community.general.json_query(query) }}"
+    ignore_errors: true
+    when: irmc.ip is defined and not redfish.failed 
+
+  - name: Set one-time PXE boot device via redfish
+    community.general.redfish_command:
+      category: Systems
+      command: SetOneTimeBoot
+      bootdevice: Pxe
+      baseuri: "{{ irmc.ip }}"
+      username: "{{ irmc.user }}"
+      password: "{{ irmc.password }}"
+    delegate_to: localhost
+    when: irmc.ip is defined and boot_string is not defined
+
+  - name: assemble JSON for boot
+    set_fact:
+      profile: |
+        {
+          "Server": {
+            "@Version": "1.00",
+            "@ErrorBehaviour": "Stop",
+            "SystemConfig": {
+              "@Processing": "execute",
+              "BiosConfig": {
+                "@Version": "1.02",
+                "BiosBootOrder": {
+                  "BootOrderApply": false,
+                  "BootOrderReset": false,
+                  "NextBootDevice": "{{ boot_string }}"
+                }
+              }
+            }
+          }
+        }
+    when: irmc.ip is defined and boot_string is defined
+      
+  - name: boot using profile if boot_string has been found
+    uri:
+      url: https://{{ irmc.ip }}/rest/v1/Oem/eLCM/ProfileManagement/set
+      url_username: "{{ irmc.user }}"
+      url_password: "{{ irmc.password }}"
+      validate_certs: false
+      force_basic_auth: true
+      headers:
+        Accept: "application/json"
+      status_code: [ 200, 202 ]
+      method: POST
+      body_format: json
+      body: "{{ profile | to_json }}"
+    delegate_to: localhost
+    when: irmc.ip is defined and boot_string is defined
+
+  - name: Forced Restart of system 
+    community.general.redfish_command:
+      category: Systems
+      command: PowerForceRestart 
+      baseuri: "{{ irmc.ip }}"
+      username: "{{ irmc.user }}"
+      password: "{{ irmc.password }}"
+    register: restart
+    ignore_errors: true
+    delegate_to: localhost
+    when: irmc.ip is defined and not redfish.failed and boot_string is not defined
+
+  - name: Power on system
+    community.general.redfish_command:
+      category: Systems
+      command: PowerOn
+      baseuri: "{{ irmc.ip }}"
+      username: "{{ irmc.user }}"
+      password: "{{ irmc.password }}"
+    delegate_to: localhost
+    when: irmc.ip is defined and not redfish.failed and boot_string is not defined and restart.failed
+
+  - name: set PXE boot via IPMI
+    community.general.ipmi_boot:
+      name: "{{ irmc.ip }}"
+      user: "{{ irmc.user }}"
+      password: "{{ irmc.password }}"
+      bootdev: network
+      uefiboot: true
+    delegate_to: localhost
+    when: irmc.ip is defined and redfish.failed
+
+  - name: Reboot server via IPMI 
+    community.general.ipmi_power:
+      name: "{{ irmc.ip }}"
+      user: "{{ irmc.user }}"
+      password: "{{ irmc.password }}"
+      state: boot
+    delegate_to: localhost
+    when: irmc.ip is defined and redfish.failed
+
+  - name: destroy (i.e. stop) VM
+    community.libvirt.virt:
+      name: "{{ libvirt.vmname }}"
+      uri: "qemu+libssh://root@{{ libvirt.ip }}/system?known_hosts_verify=ignore&no_tty=1&sshauth=privkey"
+      state: destroyed 
+    delegate_to: localhost
+    when: libvirt.ip is defined
+    
+  - name: wait until VM is shutdown
+    community.libvirt.virt:
+      name: "{{ libvirt.vmname }}"
+      uri: "qemu+libssh://root@{{ libvirt.ip }}/system?known_hosts_verify=ignore&no_tty=1&sshauth=privkey"
+      command: status
+    delegate_to: localhost
+    register: vm
+    until: vm.status == 'shutdown'
+    retries: 12 
+    delay: 10
+    when: libvirt.ip is defined
+    
+  - name: start VM
+    community.libvirt.virt:
+      name: "{{ libvirt.vmname }}"
+      uri: "qemu+libssh://root@{{ libvirt.ip }}/system?known_hosts_verify=ignore&no_tty=1&sshauth=privkey"
+      state: running 
+    delegate_to: localhost
+    when: libvirt.ip is defined

@@ -1,0 +1,42 @@
+---
+version: 3
+
+dependencies:
+  ansible_core:
+    package_pip: ansible-core==2.15.13
+  ansible_runner:
+    package_pip: ansible-runner
+  galaxy: 
+    collections:
+      - name: ansible.posix 
+      - name: community.general
+      - name: community.libvirt
+      - name: ansible.netcommon
+  python:
+    - pyghmi 
+    - netaddr 
+    - jmespath
+    - libvirt-python
+  system:
+    - libvirt
+
+images:
+  base_image:
+    name: registry.redhat.io/ubi9/ubi:9.5-1734495538
+
+additional_build_files:
+   - src: depot/*
+     dest: depot
+
+additional_build_steps:
+  prepend_base:
+    - RUN subscription-manager register --username= --password= --auto-attach
+
+  append_final:
+    - COPY ./_build/depot /depot
+
+options:
+  container_init:
+    entrypoint: '[ "/bin/bash", "-c", "ansible-playbook -vv step_${JOB_COMPLETION_INDEX}.yml" ]'
+  workdir: /depot
+  user: root

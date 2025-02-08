@@ -1,0 +1,8 @@
+{% if item.ip.address is defined %}
+BOOTPROTO=static
+STARTMODE=auto
+IPADDR={{ item.ip.address | join('') }}
+{% else %}
+BOOTPROTO=dhcp
+STARTMODE=auto
+{% endif %}

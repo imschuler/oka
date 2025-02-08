@@ -1,0 +1,36 @@
+- name: wating until pre installation is done
+  hosts: all 
+  vars_files:
+  - osid.yaml
+  - host.yaml
+  - install.yaml
+  gather_facts: false
+  tasks:
+  - name: set subnets variable
+    set_fact:
+      subnetns: "{{ lookup('ansible.builtin.env', 'SUBNETNS') }}"
+
+  - name: wait for pre script to complete 
+    uri:
+      url: http://httpd.{{ subnetns }}:8080/{{ install_id }}/pre
+      return_content: true
+    register: pre
+    until: pre.status == 200 
+    retries: 8640
+    delay: 10
+    delegate_to: localhost
+
+  - name: print pre message
+    debug: 
+      msg: "{{ pre.content }}"
+
+  - name: set pxe_mac and pxe_ip
+    set_fact:
+      pxe_mac: "{% if pxe.mac is defined %}{{ pxe.mac }}{% else %}{{ inet.mac }}{% endif %}"
+      pxe_ip: "{% if pxe.ip is defined %}{{ pxe.ip }}{% else %}{{ inet.ip }}{% endif %}"
+
+  - name: disable TFTP on DHCP server
+    uri:
+      url: http://dhcpd.{{ subnetns }}:8080/{{ install_id }}?host={{ host }}&osid={{ osid }}&ip={{ pxe_ip }}&mac={{ pxe_mac }}
+      method: POST
+    delegate_to: localhost

@@ -1,0 +1,31 @@
+- name: Post Ansible Tasks 
+  hosts: all
+  tasks:
+    - name: find all tasks to be included
+      find:
+         paths: /depot/ansible-tasks
+         patterns: "*.yaml"
+         file_type: any
+         follow: true
+      register: atasks
+      delegate_to: localhost
+
+    - name: find all vars to be included
+      find:
+         paths: /depot/ansible-vars
+         patterns: "*.yaml"
+         file_type: any
+         follow: true
+      register: avars
+      delegate_to: localhost
+
+    - name: include Ansible variables 
+      include_vars:
+        file: "{{ item }}" 
+      loop: "{{ avars['files'] | map(attribute='path') | list | sort }}"
+      when: avars["matched"] > 0
+
+    - name: import post Ansible tasks
+      include_tasks: "{{ item }}" 
+      loop: "{{ atasks['files'] | map(attribute='path') | list | sort }}"
+      when: atasks["matched"] > 0

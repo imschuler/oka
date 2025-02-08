@@ -1,0 +1,84 @@
+- name: create ansible user
+  hosts: all 
+  vars_files:
+  - osid.yaml
+  - host.yaml
+  - install.yaml
+  - access.yaml
+  remote_user: root 
+  gather_facts: false
+  tasks:
+    - name: set subnets variable
+      set_fact:
+        subnetns: "{{ lookup('ansible.builtin.env', 'SUBNETNS') }}"
+
+    - name: first SSH login 
+      debug:
+        msg: "trying to login with install_id : {{ install_id }}" 
+
+    - name: wait until root user can be connected
+      wait_for_connection:
+        timeout: 86400
+        connect_timeout: 10
+
+    - name: check /root/oka/issue for install_id
+      lineinfile: 
+        dest: /root/oka/issue
+        line: "installed by Oka using install_id : {{ install_id }}" 
+      check_mode: yes
+      register: issue
+
+    - name: assert that install_id was in /root/oka/issue 
+      assert:
+        that: not issue.changed  
+
+    - name: create ansible user
+      user:
+        name: ansible
+        comment: Ansible User
+
+    - name: make ansible a passwordless sudoer
+      lineinfile:
+        path: /etc/sudoers.d/ansible
+        line: "ansible ALL=(ALL) NOPASSWD: ALL"
+        create: true
+        validate: visudo -cf %s
+
+    - name: allow passwordless access via ssh
+      ansible.posix.authorized_key:
+        key: "{{ pub_key }}"
+        user: ansible
+        state: present
+
+    - name: wait until ansible user can be connected
+      wait_for_connection:
+        timeout: 300
+      remote_user: ansible
+
+    - name: switch off TFTP server
+      uri:
+        url: http://tftpd.{{ subnetns }}:8080/{{ install_id }}
+        method: DELETE 
+      delegate_to: localhost
+
+    - name: set pxe_mac
+      set_fact:
+        pxe_mac: "{% if pxe.mac is defined %}{{ pxe.mac }}{% else %}{{ inet.mac }}{% endif %}"
+
+    - name: switch off DHCP server
+      uri:
+        url: http://dhcpd.{{ subnetns }}:8080/{{ install_id }}?mac={{ pxe_mac }}
+        method: DELETE 
+      delegate_to: localhost
+
+    - name: switch off image server
+      uri:
+        url: http://isosd.{{ subnetns }}:8080/{{ install_id }}
+        method: DELETE 
+      delegate_to: localhost
+
+    - name: switch off HTTP server
+      uri:
+        url: http://httpd.{{ subnetns }}:8080/{{ install_id }}
+        method: DELETE 
+      delegate_to: localhost

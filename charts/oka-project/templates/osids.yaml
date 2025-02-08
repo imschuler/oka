@@ -1,0 +1,33 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: osids
+  labels:
+    app.kubernetes.io/name: oka
+data:
+  {{- range .Values.osids }}
+    {{ .osid }}: |-
+      osid:     {{ .osid }}
+      repos:    {{- range .repos }}
+                  {{- if .ins }}
+                  - ins: {{ .ins | quote }}
+                  {{- end }}
+                  {{- if .drv }}
+                  - drv: {{ .drv | quote }}
+                  {{- end }}
+                  {{- if .add }}
+                  - add: {{ .add | quote }}
+                  {{- end }}
+                {{- end }}
+      {{- if .product }}
+      product:  {{ .product }}
+      {{- end }}
+      {{- if .patterns }}
+      patterns: {{- range .patterns }}
+                - {{ quote . }}
+                {{- end }}
+      {{- end }}
+      packages: {{- range .packages }}
+                - {{ quote . }}
+                {{- end }}
+  {{- end }}

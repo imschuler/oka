@@ -1,0 +1,15 @@
+{{ $namespace := .Release.Namespace }}
+{{ $subnetns := .Values.subnetns }}
+{{- if not (lookup "v1" "ConfigMap" $namespace "subnet") }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: subnet
+  labels:
+    app.kubernetes.io/name: oka
+immutable: true
+data:
+  {{- range $key, $value := (lookup "v1" "ConfigMap" $subnetns "subnet").data }}
+    {{ $key }}: {{ $value | quote }}
+  {{- end }}
+{{- end }}

@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: subnetns
+  labels:
+    app.kubernetes.io/name: oka
+data:
+  subnetns: {{ .Values.subnetns }}

@@ -1,0 +1,96 @@
+- name: prepare DHCP / TFTP / ISO and HTTP server for installation
+  hosts: all 
+  vars_files:
+  - subnet.yaml
+  - osid.yaml
+  - host.yaml
+  - install.yaml
+  - access.yaml
+  vars:
+    repos_json: "{{ repos | to_json }}"
+    disks_json: "{{ disks | to_json }}"
+  gather_facts: false
+  tasks:
+  - name: set subnets variable
+    set_fact:
+      subnetns: "{{ lookup('ansible.builtin.env', 'SUBNETNS') }}"
+
+  - name: initialize DHCP server
+    uri:
+      url: http://dhcpd.{{ subnetns }}:8080/?subnet={{ subnet }}&netmask={{ netmask }}&range_begin={{ range_begin }}&range_end={{ range_end }}
+      method: POST
+    delegate_to: localhost
+
+  - name: print repos
+    debug:
+      var: repos
+
+  - name: set shim for SUSE 
+    set_fact:
+      shim: bootx64.efi
+    when: "'suse' in osid"
+
+  - name: set shim for Red Hat
+    set_fact:
+      shim: BOOTX64.EFI
+    when: "'redhat' in osid"
+
+  - name: set pxe_mac and pxe_ip
+    set_fact:
+      pxe_mac: "{% if pxe.mac is defined %}{{ pxe.mac }}{% else %}{{ inet.mac }}{% endif %}"
+      pxe_ip: "{% if pxe.ip is defined %}{{ pxe.ip }}{% else %}{{ inet.ip }}{% endif %}"
+
+  - name: setup DHCP server
+    uri:
+      url: http://dhcpd.{{ subnetns }}:8080/{{ install_id }}?host={{ host }}&osid={{ osid }}&ip={{ pxe_ip }}&mac={{ pxe_mac }}&shim={{ shim }}&tftpd_ip_ext={{ tftpd_ip_ext }}
+      method: POST
+    delegate_to: localhost
+
+  - name: setup image / ISO server
+    uri:
+      url: http://isosd.{{ subnetns }}:8080/{{ install_id }}
+      method: POST
+      body_format: json
+      body: > 
+        { 
+          "repos": {{ repos_json }}, 
+        }
+    delegate_to: localhost
+
+  - name: setup TFTP server
+    uri:
+      url: http://tftpd.{{ subnetns }}:8080/{{ install_id }}
+      method: POST
+      body_format: json
+      body: > 
+        { 
+          "osid": "{{ osid }}", 
+          "repos": {{ repos_json }},
+          "httpd_ip_ext": "{{ httpd_ip_ext }}"
+        }
+    delegate_to: localhost
+
+  - name: setup HTTP server
+    uri:
+      url: http://httpd.{{ subnetns }}:8080/{{ install_id }}
+      method: POST
+      body_format: json
+      body: > 
+        { 
+          "osid": "{{ osid }}", 
+          "repos": {{ repos_json }},
+          "disks": {{ disks_json }}, 
+          "root_password": "{{ root_password }}", 
+          "pub_key": {{ pub_key | to_json }}, 
+          {% if product is defined %}
+          "product": "{{ product }}",
+          {% endif %}
+          {% if patterns is defined %}
+          "patterns": {{ patterns | to_json }}, 
+          {% endif %}
+          "packages": {{ packages | to_json }}, 
+          "locale": "{{ locale.split('.')[0] }}",  
+          "httpd_ip_ext": "{{ httpd_ip_ext }}",
+          "pxe_mac": "{{ pxe_mac }}"
+        }
+    delegate_to: localhost

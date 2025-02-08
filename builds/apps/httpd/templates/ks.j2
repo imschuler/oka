@@ -1,0 +1,41 @@
+#version=RHEL8
+# Use graphical install
+graphical
+
+%packages
+{% if packages %}
+{{ packages }}
+{% endif %}
+%end
+
+# Keyboard layouts
+keyboard --vckeymap=de --xlayouts='de'
+
+# System language
+lang {{ locale }}
+
+ignoredisk --only-use={{ disk1 }}
+clearpart --drives={{ disk1 }} --all --initlabel
+autopart
+
+# System timezone
+timezone America/New_York --isUtc
+
+# Root password
+rootpw {{ root_password }}
+
+# authorized_key
+sshkey --username=root "{{ pub_key }}"
+
+%addon com_redhat_kdump --disable --reserve-mb='auto'
+%end
+
+%pre
+curl "http://{{ httpd_ip_ext }}/{{ install_id }}/pre.sh" | bash -
+%end
+
+%post --nochroot --log=/mnt/sysimage/root/ks-post.log
+curl "http://{{ httpd_ip_ext }}/{{ install_id }}/post.sh" | bash -
+%end
+
+reboot

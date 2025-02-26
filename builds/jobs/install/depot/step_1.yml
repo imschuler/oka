@@ -13,10 +13,14 @@
       baseuri: "{{ irmc.ip }}"
       username: "{{ irmc.user }}"
       password: "{{ irmc.password }}"
-    register: redfish
+    register: redfish_info
     ignore_errors: true
     delegate_to: localhost
     when: irmc.ip is defined
+
+  - name: check for redfish
+    set_fact:
+      redfish: '{% if redfish_info.redfish_facts is defined and not redfish_info.failed %}true{% else %}false{% endif %}'
 
   - name: set pxe_mac
     set_fact:
@@ -28,26 +32,15 @@
 
   - name: print boot sources 
     ansible.builtin.debug:
-      var: redfish.redfish_facts.bios_attribute.entries[0][1].BootSources  
-    when: irmc.ip is defined and not redfish.failed 
+      var: redfish_info.redfish_facts.bios_attribute.entries[0][1].BootSources  
+    when: irmc.ip is defined and redfish
 
   - name: save boot_string
     set_fact:
       boot_string: "{{ item }}"
-    loop: "{{ redfish.redfish_facts | community.general.json_query(query) }}"
+    loop: "{{ redfish_info.redfish_facts | community.general.json_query(query) }}"
     ignore_errors: true
-    when: irmc.ip is defined and not redfish.failed 
-
-  - name: Set one-time PXE boot device via redfish
-    community.general.redfish_command:
-      category: Systems
-      command: SetOneTimeBoot
-      bootdevice: Pxe
-      baseuri: "{{ irmc.ip }}"
-      username: "{{ irmc.user }}"
-      password: "{{ irmc.password }}"
-    delegate_to: localhost
-    when: irmc.ip is defined and boot_string is not defined
+    when: irmc.ip is defined and redfish
 
   - name: assemble JSON for boot
     set_fact:
@@ -87,6 +80,17 @@
     delegate_to: localhost
     when: irmc.ip is defined and boot_string is defined
 
+  - name: Set one-time PXE boot device via redfish
+    community.general.redfish_command:
+      category: Systems
+      command: SetOneTimeBoot
+      bootdevice: Pxe
+      baseuri: "{{ irmc.ip }}"
+      username: "{{ irmc.user }}"
+      password: "{{ irmc.password }}"
+    delegate_to: localhost
+    when: irmc.ip is defined and redfish and boot_string is not defined
+
   - name: Forced Restart of system 
     community.general.redfish_command:
       category: Systems
@@ -97,7 +101,7 @@
     register: restart
     ignore_errors: true
     delegate_to: localhost
-    when: irmc.ip is defined and not redfish.failed and boot_string is not defined
+    when: irmc.ip is defined and redfish and boot_string is not defined
 
   - name: Power on system
     community.general.redfish_command:
@@ -107,7 +111,7 @@
       username: "{{ irmc.user }}"
       password: "{{ irmc.password }}"
     delegate_to: localhost
-    when: irmc.ip is defined and not redfish.failed and boot_string is not defined and restart.failed
+    when: irmc.ip is defined and redfish and boot_string is not defined and restart.failed
 
   - name: set PXE boot via IPMI
     community.general.ipmi_boot:
@@ -117,7 +121,7 @@
       bootdev: network
       uefiboot: true
     delegate_to: localhost
-    when: irmc.ip is defined and redfish.failed
+    when: irmc.ip is defined and not redfish
 
   - name: Reboot server via IPMI 
     community.general.ipmi_power:
@@ -126,7 +130,7 @@
       password: "{{ irmc.password }}"
       state: boot
     delegate_to: localhost
-    when: irmc.ip is defined and redfish.failed
+    when: irmc.ip is defined and not redfish
 
   - name: destroy (i.e. stop) VM
     community.libvirt.virt:

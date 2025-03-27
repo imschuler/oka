@@ -59,7 +59,8 @@
       ansible.builtin.package:
         name: "{{ item }}"
         state: present
-      loop: "{{ packages2|default([]) }}"
+      loop: "{{ packages2 }}"
+      when: packages2 is defined
       
     - name: switch off TFTP server
       uri:

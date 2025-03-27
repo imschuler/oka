@@ -15,7 +15,7 @@
     
   tasks:
   - command: zypper mr -da
-    when: ansible_facts['distribution'] == "SLES"
+    when: ansible_facts['distribution'] in [ "SLES", "SLES_SAP" ]
 
   - name: set hostname
     hostname:
@@ -57,7 +57,7 @@
           state: present
 
       - shell: update-ca-certificates
-    when: certificate is defined and ansible_facts['distribution'] == "SLES"
+    when: certificate is defined and ansible_facts['distribution'] in [ "SLES", "SLES_SAP" ]
 
   - name: register RHEL servers if Pool IDs present
     block:
@@ -79,7 +79,7 @@
       - name: register at SUSE
         command: SUSEConnect -r {{ suse_activation_key }} -e {{ email_addr }}
         environment: "{{ proxy_env }}"
-    when: suse_activation_key is defined and ansible_facts['distribution'] == "SLES"
+    when: suse_activation_key is defined and ansible_facts['distribution'] in [ "SLES", "SLES_SAP" ] 
 
   - block:
       - name: download clientSetup4SMT.sh script
@@ -89,7 +89,7 @@
 
       - name: register with SMT server
         command: sh /tmp/clientSetup4SMT.sh --host {{ smt_server }} --fingerprint {{ smt_fingerprint }} --yes
-    when: suse_activation_key is undefined and smt_server is defined and ansible_facts['distribution'] == "SLES"
+    when: suse_activation_key is undefined and smt_server is defined and ansible_facts['distribution'] in [ "SLES", "SLES_SAP" ] 
 
   - block:
       - name: set HTTP_PROXY in /etc/sysconfig/proxy

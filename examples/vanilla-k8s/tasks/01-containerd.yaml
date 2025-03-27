@@ -55,7 +55,7 @@
   lineinfile:
     path: /etc/containerd/config.toml
     regexp: "sandbox_image ="
-    line: sandbox_image = "registry.k8s.io/pause:3.9"
+    line: sandbox_image = "registry.k8s.io/pause:3.10"
 
 - name: start containerd
   systemd:

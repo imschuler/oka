@@ -7,27 +7,32 @@ metadata:
 data:
   {{- range .Values.osids }}
     {{ .osid }}: |-
-      osid:     {{ .osid }}
-      repos:    {{- range .repos }}
-                  {{- if .ins }}
-                  - ins: {{ .ins | quote }}
-                  {{- end }}
-                  {{- if .drv }}
-                  - drv: {{ .drv | quote }}
-                  {{- end }}
-                  {{- if .add }}
-                  - add: {{ .add | quote }}
-                  {{- end }}
-                {{- end }}
+      osid:      {{ .osid }}
+      repos:     {{- range .repos }}
+                   {{- if .ins }}
+                   - ins: {{ .ins | quote }}
+                   {{- end }}
+                   {{- if .drv }}
+                   - drv: {{ .drv | quote }}
+                   {{- end }}
+                   {{- if .add }}
+                   - add: {{ .add | quote }}
+                   {{- end }}
+                 {{- end }}
       {{- if .product }}
-      product:  {{ .product }}
+      product:   {{ .product }}
       {{- end }}
       {{- if .patterns }}
-      patterns: {{- range .patterns }}
-                - {{ quote . }}
-                {{- end }}
+      patterns:  {{- range .patterns }}
+                 - {{ quote . }}
+                 {{- end }}
       {{- end }}
-      packages: {{- range .packages }}
-                - {{ quote . }}
-                {{- end }}
+      packages:  {{- range .packages }}
+                 - {{ quote . }}
+                 {{- end }}
+      {{- if .packages2 }}
+      packages2: {{- range .packages2 }}
+                 - {{ quote . }}
+                 {{- end }}
+      {{- end }}
   {{- end }}

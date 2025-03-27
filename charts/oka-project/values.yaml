@@ -7,9 +7,11 @@ subnetns:
 osids:
   - osid:
     repos: 
-# opional product i.e. SLES
+# opional product i.e. SLES, SLES_SAP
     product:
 # optional array of patterns ( SUSE )
     patterns:
 # mandatory array of packages to get Ansible running
     packages:
+# optional further packages from ISO
+    packages2: 

@@ -55,6 +55,12 @@
         timeout: 300
       remote_user: ansible
 
+    - name: install further packages from the ISO
+      ansible.builtin.package:
+        name: "{{ item }}"
+        state: present
+      loop: "{{ packages2 }}"
+      
     - name: switch off TFTP server
       uri:
         url: http://tftpd.{{ subnetns }}:8080/{{ install_id }}

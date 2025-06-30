@@ -46,25 +46,36 @@ async def create_base(install_id: str, request: Request):
 
         download(install_id)
 
-        os.makedirs(BASE_DIR + install_id + "/pxelinux/pxelinux.cfg")
-        shutil.copy("/depot/syslinux-tftpboot-6.04-0.20.el9/tftpboot/pxelinux.0", BASE_DIR + install_id + "/pxelinux/")
-        shutil.copy("/depot/syslinux-tftpboot-6.04-0.20.el9/tftpboot/ldlinux.c32", BASE_DIR + install_id + "/pxelinux/")
-
+        is_x64 = os.path.exists("/depot/bootx64.efi") or os.path.exists("/depot/BOOTX64.efi")
         prefix = input["osid"].split("_")[0]
-        if prefix == "suse":
-            shutil.copy("/depot/linux", BASE_DIR + install_id + "/pxelinux/")
-            shutil.copy("/depot/initrd", BASE_DIR + install_id + "/pxelinux/")
-        elif prefix == "redhat":
-            shutil.copy("/depot/vmlinuz", BASE_DIR + install_id + "/pxelinux/")
-            shutil.copy("/depot/initrd.img", BASE_DIR + install_id + "/pxelinux/")
+        os.mkdir(BASE_DIR + install_id)
+
+        if is_x64:
+            os.makedirs(BASE_DIR + install_id + "/pxelinux/pxelinux.cfg")
+            shutil.copy("/depot/syslinux-tftpboot-6.04-0.20.el9/tftpboot/pxelinux.0", BASE_DIR + install_id + "/pxelinux/")
+            shutil.copy("/depot/syslinux-tftpboot-6.04-0.20.el9/tftpboot/ldlinux.c32", BASE_DIR + install_id + "/pxelinux/")
+
+            if prefix == "suse":
+                shutil.copy("/depot/linux", BASE_DIR + install_id + "/pxelinux/")
+                shutil.copy("/depot/initrd", BASE_DIR + install_id + "/pxelinux/")
+            elif prefix == "redhat":
+                shutil.copy("/depot/vmlinuz", BASE_DIR + install_id + "/pxelinux/")
+                shutil.copy("/depot/initrd.img", BASE_DIR + install_id + "/pxelinux/")
 
         os.mkdir(BASE_DIR + install_id + "/efi")
         if prefix == "suse":
-            shutil.copy("/depot/bootx64.efi", BASE_DIR + install_id + "/efi/")
+            if is_x64:
+                shutil.copy("/depot/bootx64.efi", BASE_DIR + install_id + "/efi/")
+            else:
+                shutil.copy("/depot/bootaa64.efi", BASE_DIR + install_id + "/efi/")
             shutil.copy("/depot/grub.efi", BASE_DIR + install_id + "/efi/")
         elif prefix == "redhat":
-            shutil.copy("/depot/BOOTX64.EFI", BASE_DIR + install_id + "/efi/")
-            shutil.copy("/depot/grubx64.efi", BASE_DIR + install_id + "/efi/")
+            if is_x64:
+                shutil.copy("/depot/BOOTX64.EFI", BASE_DIR + install_id + "/efi/")
+                shutil.copy("/depot/grubx64.efi", BASE_DIR + install_id + "/efi/")
+            else:
+                shutil.copy("/depot/BOOTAA64.EFI", BASE_DIR + install_id + "/efi/")
+                shutil.copy("/depot/grubaa64.efi", BASE_DIR + install_id + "/efi/")
 
         shutil.copy("/depot/revocations.efi", BASE_DIR + install_id + "/efi/")
 
@@ -75,7 +86,8 @@ async def create_base(install_id: str, request: Request):
             shutil.copy("/depot/vmlinuz", BASE_DIR + install_id + "/efi/")
             shutil.copy("/depot/initrd.img", BASE_DIR + install_id + "/efi/")
 
-        render("/templates/default_" + prefix + ".j2", BASE_DIR + install_id + "/pxelinux/pxelinux.cfg/default", install_id, input)
+        if is_x64:
+            render("/templates/default_" + prefix + ".j2", BASE_DIR + install_id + "/pxelinux/pxelinux.cfg/default", install_id, input)
         render("/templates/grub_" + prefix + ".j2", BASE_DIR + install_id + "/efi/grub.cfg", install_id, input)
 
         return { "status": " OK" }
@@ -112,7 +124,7 @@ def render(in_file, out_file, install_id, input):
 
 def download(install_id):
 
-    for path in [ "boot/x86_64/loader/linux", "boot/x86_64/loader/initrd", "isolinux/initrd.img", "isolinux/vmlinuz", "EFI/BOOT/grub.efi", "EFI/BOOT/bootx64.efi", "EFI/BOOT/grubx64.efi", "EFI/BOOT/BOOTX64.EFI" ]:
+    for path in [ "boot/x86_64/loader/linux", "boot/x86_64/loader/initrd", "boot/aarch64/initrd", "boot/aarch64/linux", "images/pxeboot/initrd.img", "images/pxeboot/vmlinuz", "EFI/BOOT/grub.efi", "EFI/BOOT/bootx64.efi", "EFI/BOOT/grubx64.efi", "EFI/BOOT/BOOTX64.EFI", "EFI/BOOT/bootaa64.efi", "EFI/BOOT/BOOTAA64.EFI", "EFI/BOOT/grubaa64.efi" ]:
          
         url = "_repos/" + install_id + "/repo/" + path 
         basename = os.path.basename(path) 

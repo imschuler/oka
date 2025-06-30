@@ -6,7 +6,7 @@
 # podman login registry.redhat.io
 
 DOCKER_ACCOUNT=imschuler
-VERSION=0.8.1
+VERSION=0.8.2
 
 case $HOSTTYPE in
   aarch64)

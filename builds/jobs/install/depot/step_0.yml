@@ -25,16 +25,6 @@
     debug:
       var: repos
 
-  - name: set shim for SUSE 
-    set_fact:
-      shim: bootx64.efi
-    when: "'suse' in osid"
-
-  - name: set shim for Red Hat
-    set_fact:
-      shim: BOOTX64.EFI
-    when: "'redhat' in osid"
-
   - name: set pxe_mac and pxe_ip
     set_fact:
       pxe_mac: "{% if pxe.mac is defined %}{{ pxe.mac }}{% else %}{{ inet.mac }}{% endif %}"
@@ -42,7 +32,7 @@
 
   - name: setup DHCP server
     uri:
-      url: http://dhcpd.{{ subnetns }}:8080/{{ install_id }}?host={{ host }}&osid={{ osid }}&ip={{ pxe_ip }}&mac={{ pxe_mac }}&shim={{ shim }}&tftpd_ip_ext={{ tftpd_ip_ext }}
+      url: http://dhcpd.{{ subnetns }}:8080/{{ install_id }}?host={{ host }}&osid={{ osid }}&ip={{ pxe_ip }}&mac={{ pxe_mac }}&tftpd_ip_ext={{ tftpd_ip_ext }}
       method: POST
     delegate_to: localhost
 

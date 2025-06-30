@@ -4,7 +4,7 @@
 # podman login docker.io
 
 DOCKER_ACCOUNT=imschuler
-VERSION=0.8.1
+VERSION=0.8.2
 
 for ITEM in oka-dhcpd oka-tftpd oka-httpd oka-isosd oka-install
 do

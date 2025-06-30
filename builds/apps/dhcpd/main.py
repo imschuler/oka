@@ -100,7 +100,7 @@ async def create_root(subnet: str, netmask: str, range_begin: str, range_end: st
         return { "status": " OK" }
 
 @app.post("/{install_id}")
-async def create_base(install_id: str, host: str, osid: str, ip: str, mac: str, shim: Union[str, None] = None, tftpd_ip_ext: Union[str, None] = None):
+async def create_base(install_id: str, host: str, osid: str, ip: str, mac: str, tftpd_ip_ext: Union[str, None] = None):
 
     REQUESTS.labels("post").inc();
     with EXCEPTIONS.labels("post").count_exceptions():
@@ -109,10 +109,19 @@ async def create_base(install_id: str, host: str, osid: str, ip: str, mac: str, 
 
         remove("/etc/dhcpd.conf", mac)
 
+        shim_x64 = ""
+        shim_aa64 = ""
+        if "suse" in osid:
+            shim_x64 = "bootx64.efi"
+            shim_aa64 = "bootaa64.efi"
+        if "redhat" in osid:
+            shim_x64 = "BOOTX64.EFI"
+            shim_aa64 = "BOOTAA64.EFI"
+
         if not tftpd_ip_ext:
             render("/templates/host_none.j2", "/tmp/host.conf", { "install_id": install_id, "host": host, "osid": osid, "ip": ip, "mac": mac })
         else:
-            render("/templates/host_tftp.j2", "/tmp/host.conf", { "install_id": install_id, "host": host, "osid": osid, "ip": ip, "mac": mac, "shim": shim, "tftpd_ip_ext": tftpd_ip_ext })
+            render("/templates/host_tftp.j2", "/tmp/host.conf", { "install_id": install_id, "host": host, "osid": osid, "ip": ip, "mac": mac, "shim_x64": shim_x64, "shim_aa64": shim_aa64, "tftpd_ip_ext": tftpd_ip_ext })
 
         insert("/tmp/host.conf", "/etc/dhcpd.conf")
 

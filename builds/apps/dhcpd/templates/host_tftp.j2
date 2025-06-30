@@ -4,7 +4,9 @@ host {{ host }} {
   fixed-address {{ ip }};
   next-server {{ tftpd_ip_ext }};
   if option arch = 00:07 or option arch = 00:09 {
-    filename "{{ install_id }}/efi/{{ shim }}";
+    filename "{{ install_id }}/efi/{{ shim_x64 }}";
+  } elsif option arch = 00:0b { 
+    filename "{{ install_id }}/efi/{{ shim_aa64 }}";
   } else {
     filename "{{ install_id }}/pxelinux/pxelinux.0";
   }

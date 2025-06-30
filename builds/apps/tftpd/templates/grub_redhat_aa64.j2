@@ -1,0 +1,7 @@
+set timeout=1
+menuentry '{{ osid }}' {
+  echo 'Loading vmlinuz ...'
+  linux {{ install_id }}/efi/vmlinuz inst.repo=http://{{ httpd_ip_ext }}/_repos/{{ install_id }}/repo inst.ks=http://{{ httpd_ip_ext }}/{{ install_id }}/ks.cfg ip=dhcp
+  echo 'Loading initrd.img ...'
+  initrd {{ install_id }}/efi/initrd.img
+}

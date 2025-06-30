@@ -88,7 +88,9 @@ async def create_base(install_id: str, request: Request):
 
         if is_x64:
             render("/templates/default_" + prefix + ".j2", BASE_DIR + install_id + "/pxelinux/pxelinux.cfg/default", install_id, input)
-        render("/templates/grub_" + prefix + ".j2", BASE_DIR + install_id + "/efi/grub.cfg", install_id, input)
+            render("/templates/grub_" + prefix + ".j2", BASE_DIR + install_id + "/efi/grub.cfg", install_id, input)
+        else:
+            render("/templates/grub_" + prefix + "_aa64.j2", BASE_DIR + install_id + "/efi/grub.cfg", install_id, input)
 
         return { "status": " OK" }
 

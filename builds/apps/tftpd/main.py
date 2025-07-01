@@ -133,6 +133,8 @@ def download(depot, install_id):
          
         url = "_repos/" + install_id + "/repo/" + path 
         basename = os.path.basename(path) 
+        if os.path.exists(depot + basename):
+            continue 
 
         with open(depot + basename, "wb") as f:
             try:

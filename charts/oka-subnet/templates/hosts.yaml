@@ -38,11 +38,6 @@ data:
         user:        {{ .irmc.user }}
         password:    {{ .irmc.password }}
       {{- end }}
-      {{- if .libvirt }}
-      libvirt:
-        ip:          {{ .libvirt.ip }}
-        vmname:      {{ .libvirt.vmname }}
-      {{- end }}
   {{- end }}
 ---
 apiVersion: v1

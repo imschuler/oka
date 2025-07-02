@@ -131,31 +131,3 @@
       state: boot
     delegate_to: localhost
     when: irmc.ip is defined and not redfish
-
-  - name: destroy (i.e. stop) VM
-    community.libvirt.virt:
-      name: "{{ libvirt.vmname }}"
-      uri: "qemu+libssh://root@{{ libvirt.ip }}/system?known_hosts_verify=ignore&no_tty=1&sshauth=privkey"
-      state: destroyed 
-    delegate_to: localhost
-    when: libvirt.ip is defined
-    
-  - name: wait until VM is shutdown
-    community.libvirt.virt:
-      name: "{{ libvirt.vmname }}"
-      uri: "qemu+libssh://root@{{ libvirt.ip }}/system?known_hosts_verify=ignore&no_tty=1&sshauth=privkey"
-      command: status
-    delegate_to: localhost
-    register: vm
-    until: vm.status == 'shutdown'
-    retries: 12 
-    delay: 10
-    when: libvirt.ip is defined
-    
-  - name: start VM
-    community.libvirt.virt:
-      name: "{{ libvirt.vmname }}"
-      uri: "qemu+libssh://root@{{ libvirt.ip }}/system?known_hosts_verify=ignore&no_tty=1&sshauth=privkey"
-      state: running 
-    delegate_to: localhost
-    when: libvirt.ip is defined

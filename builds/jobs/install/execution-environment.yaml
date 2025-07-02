@@ -3,32 +3,34 @@ version: 3
 
 dependencies:
   ansible_core:
-    package_pip: ansible-core
+    package_pip: ansible-core>=2.16
   ansible_runner:
     package_pip: ansible-runner
-  galaxy: 
+  python_interpreter:
+    package_system: "python312"
+    python_path: "/usr/bin/python3.12"
+  galaxy:
     collections:
-      - name: ansible.posix 
+      - name: ansible.posix
       - name: community.general
-      - name: community.libvirt
       - name: ansible.netcommon
   python:
-    - pyghmi 
-    - netaddr 
+    - pyghmi
+    - netaddr
     - jmespath
-    - libvirt-python
-  system:
-    - libvirt
 
 images:
   base_image:
-    name: registry.redhat.io/ubi9/ubi:9.5-1734495538
+    name: registry.redhat.io/ubi9/ubi:9.6-1751445649
 
 additional_build_files:
    - src: depot/*
      dest: depot
 
 additional_build_steps:
+  append_base:
+    - RUN $PYCMD -m pip install --upgrade pip
+
   append_final:
     - COPY ./_build/depot /depot
 

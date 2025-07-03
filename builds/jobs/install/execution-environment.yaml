@@ -2,6 +2,9 @@
 version: 3
 
 dependencies:
+  python_interpreter:
+    package_system: "python39"
+    python_path: "/usr/bin/python3.9"
   ansible_core:
     package_pip: ansible-core==2.15.13
   ansible_runner:
@@ -11,6 +14,7 @@ dependencies:
       - name: ansible.posix
       - name: community.general
       - name: ansible.netcommon
+        version: 7.2.0
   python:
     - pyghmi
     - netaddr

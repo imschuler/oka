@@ -54,7 +54,16 @@
 
 - name: download Antrea manifest
   uri:
-    url: https://github.com/antrea-io/antrea/releases/download{{ antrea }}//antrea.yml 
+    url: https://github.com/antrea-io/antrea/releases/download/{{ antrea }}/antrea.yml 
+  become: false
   environment:
     - https_proxy: "{{ http_proxy.stdout }}"
   when: antrea is defined and antrea|length 
+
+- name: download MetalLb manifest
+  uri:
+    url: kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/{{ metallb }}/config/manifests/metallb-native.yaml 
+  become: false
+  environment:
+    - https_proxy: "{{ http_proxy.stdout }}"
+  when: metallb is defined and metallb|length 

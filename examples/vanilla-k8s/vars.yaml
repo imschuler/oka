@@ -6,5 +6,6 @@ arch: amd64
 reboot_timeout: 240
 # optional NTP server
 ntp_server: de.pool.ntp.org
-# optional Antrea mainfest download
+# optional Antrea/MetalLb mainfest download
 antrea: v2.3.1
+metallb: v0.15.2

@@ -61,4 +61,5 @@
 
 - name: reboot
   reboot:
+    pre_reboot_delay: 60
     reboot_timeout: "{{ reboot_timeout }}"

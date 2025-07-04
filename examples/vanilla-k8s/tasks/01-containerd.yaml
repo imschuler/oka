@@ -11,10 +11,16 @@
   shell: grep ^VERSION_ID /etc/os-release | sed s'/VERSION_ID=\([^ ]*\).*/\1/' | tr -d '"'
   register: sles_id
 
+- name: two styles for arch variable
+  set_fact:
+    arch2: {% if arch == 'amd64' %}x86_64{% else %}aarch64{% endif %}
+
 - name: activate channels
-  command: SUSEConnect -p {{ item }}
+  command: SUSEConnect -p {{ mod }}
   loop:
-  - sle-module-containers/{{ sles_id.stdout }}/x86_64
+  - sle-module-containers/{{ sles_id.stdout }}/{{ arch2 }}
+  loop_control:
+    loop_var: mod 
   environment:
   - https_proxy: "{{ https_proxy.stdout }}"
 
@@ -66,7 +72,7 @@
 
 - name: install further packages
   zypper:
-    name: "{{ item }}"
+    name: "{{ pkg }}"
     state: present
   loop:
     - iptables
@@ -75,6 +81,8 @@
     - ethtool
     - conntrack-tools
     - apparmor-parser
+  loop_control:
+    loop_var: pkg 
   environment:
     - http_proxy: "{{ http_proxy.stdout }}"
     - https_proxy: "{{ https_proxy.stdout }}"

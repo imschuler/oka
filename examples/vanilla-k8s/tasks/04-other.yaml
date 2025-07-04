@@ -28,6 +28,7 @@
     owner: root
     group: root
     mode: 0644
+  when: ntp_server is defined and ntp_server|length 
 
 - name: enable chronyd
   systemd:
@@ -35,9 +36,25 @@
     state: started 
     enabled: true
     daemon_reload: true
+  when: ntp_server is defined and ntp_server|length 
 
 - name: disable proxy
   lineinfile:
     path: /etc/sysconfig/proxy
     line: PROXY_ENABLED=no
     regexp: ^PROXY_ENABLED
+
+- name: install openvswitch for Antrea 
+  zypper:
+    name: openvswitch 
+    state: present
+  environment:
+    - http_proxy: "{{ http_proxy.stdout }}"
+  when: antrea is defined and antrea|length 
+
+- name: download Antrea manifest
+  uri:
+    url: https://github.com/antrea-io/antrea/releases/download{{ antrea }}//antrea.yml 
+  environment:
+    - https_proxy: "{{ http_proxy.stdout }}"
+  when: antrea is defined and antrea|length 

@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
 
-NAMESPACE=kodaira
+NAMESPACE=project-nodes
 export NAMESPACE
 
 kubectl create configmap ansible-vars -n $NAMESPACE --from-file=vars.yaml

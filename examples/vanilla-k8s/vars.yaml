@@ -1,6 +1,10 @@
 cni_version: v1.3.0
 crictl_version: v1.31.0
 kubelet_service_version: v0.16.2
-arch: amd64
-reboot_timeout: 120
-ntp_server:
+# amd64 or arm64
+arch: amd64 
+reboot_timeout: 240
+# optional NTP server
+ntp_server: de.pool.ntp.org
+# optional Antrea mainfest download
+antrea: v2.3.1

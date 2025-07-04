@@ -14,9 +14,6 @@
       {% if proxy_host is defined %}{{ proxy_env0 }}{% endif %}
     
   tasks:
-  - command: zypper mr -da
-    when: ansible_facts['distribution'] in [ "SLES", "SLES_SAP" ]
-
   - name: set hostname
     hostname:
       name: "{{ hostname }}"
@@ -71,6 +68,9 @@
     when: redhat_pool_id is defined and ansible_facts['distribution'] == "RedHat"
 
   - block:
+      - name: remove ISO repo
+        command: zypper mr -da
+
       - name: check whether system is registered at SUSE
         shell: SUSEConnect -s | sed 's/.*"status":"\([a-zA-Z]*\).*/\1/'
         environment: "{{ proxy_env }}"
@@ -82,6 +82,9 @@
     when: suse_activation_key is defined and ansible_facts['distribution'] in [ "SLES", "SLES_SAP" ] 
 
   - block:
+      - name: remove ISO repo
+        command: zypper mr -da
+
       - name: download clientSetup4SMT.sh script
         get_url:
           url: http://{{ smt_server }}/repo/tools/clientSetup4SMT.sh

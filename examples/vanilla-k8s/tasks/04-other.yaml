@@ -62,7 +62,7 @@
 
 - name: download MetalLb manifest
   uri:
-    url: kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/{{ metallb }}/config/manifests/metallb-native.yaml 
+    url: https://raw.githubusercontent.com/metallb/metallb/{{ metallb }}/config/manifests/metallb-native.yaml 
   become: false
   environment:
     - https_proxy: "{{ http_proxy.stdout }}"

@@ -13,7 +13,7 @@
 
 - name: two styles for arch variable
   set_fact:
-    arch2: {% if arch == 'amd64' %}x86_64{% else %}aarch64{% endif %}
+    arch2: "{% if arch == 'amd64' %}x86_64{% else %}aarch64{% endif %}"
 
 - name: activate channels
   command: SUSEConnect -p {{ mod }}

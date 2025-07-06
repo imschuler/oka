@@ -103,11 +103,18 @@
           path: /srv/isos2
           state: directory
 
+      - name: get the ISO files 
+        set_fact:
+          isofiles: "{{ repos|map(attribute='ins')|replace('file://','',1) }}"
+
+      - debug:
+          var: isofiles
+
       - name: copy ISO file to /srv/isos2
         copy:
           src: "{{ isopath }}"
           dest: /srv/isos2
-        loop: "{{ repos|map(attribute='ins')|replace('file://','',1) }}"
+        loop: "{{ isofiles }}"
         loop_control:
           loop_var: isopath
 
@@ -115,17 +122,18 @@
         file:
           path: /srv/isos2/{{ isoindex }}
           state: directory
-        loop: "{{ repos|map(attribute='ins')|replace('file://','',1) }}"
+        loop: "{{ isofiles }}"
         loop_control:
           index_var: isoindex
 
       - name: mount ISO files
         mount:
           path: /srv/isos2/{{ iso2index }}
-          src: /srv/isos2/{{ iso2item }} 
+          src: /srv/isos2/{{ iso2item|basename }} 
           opts: ro,loop 
+          fstype: iso9660
           state: mounted
-        loop: "{{ repos|map(attribute='ins')|replace('file://','',1)|basename }}"
+        loop: "{{ isofiles }}"
         loop_control:
           loop_var: iso2item
           index_var: iso2index
@@ -133,7 +141,8 @@
       - name: find modules
         find:
           paths: /srv/isos2
-          patterns: "/Module-.*"
+          patterns: "Module-.*"
+          file_type: directory
           use_regex: true 
           recurse: true
         register: found_modules
@@ -141,21 +150,19 @@
       - debug:
           var: found_modules
 
-      - name: extract modules 
-        set_fact:
-          modules: >
-            [ {% for mod in found_modules.stdout %}{ "path": "{{ mod }}", "base": "{{ mod|basename|replace('Module-','')|replace('-','_')|lower }}" },{% endfor %} ]
+      - set_fact:
+          path_modules: "{{ found_modules.files|map(attribute='path') }}"
 
       - debug:
-          var: modules
+          var: path_modules
 
       - name: create repo
         template:
           src: repo.j2
-          dest: /etc/zypp/repos.d/{{ module|map('base') }}.repo
-        loop: "{{ modules }}"
+          dest: /etc/zypp/repos.d/{{ mod|replace('Module-','')|replace('-','_')|lower|basename }}.repo
+        loop: "{{ path_modules }}"
         loop_control:
-          loop_var: module
+          loop_var: mod
 
       - name:
         command: "zypper refresh && zypper mr -e basesystem server_applications"

@@ -1,5 +1,5 @@
-[{{ module|map('base') }}]
-name={{ module|map('base') }}
-baseurl=file:///srv/isos2/{{ module|map('path') }}
+[{{ mod|replace('Module-','')|replace('-','_')|lower|basename }}]
+name={{ mod|replace('Module-','')|replace('-','_')|lower|basename }}
+baseurl=file://{{ mod }}
 enabled=0
 gpgcheck=0

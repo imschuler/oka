@@ -1,5 +1,5 @@
 {{ $namespace := .Release.Namespace }}
-{{ $subnetns := .Values.subnetns }}
+{{ $subnetns := .Values.subnet }}
 {{- if not (lookup "v1" "ConfigMap" $namespace "subnet") }}
 apiVersion: v1
 kind: ConfigMap

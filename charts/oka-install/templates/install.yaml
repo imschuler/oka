@@ -125,6 +125,10 @@ spec:
         configMap:
            name: ansible-vars
            optional: true
+      - name: isos
+        hostPath:
+           path: /srv/isos
+           type: Directory
       containers:
       - image: imschuler/oka-install:{{ .Chart.Version }}
         imagePullPolicy: Always
@@ -172,3 +176,6 @@ spec:
         - name: ansible-vars
           mountPath: /depot/ansible-vars
         {{- end }}
+        - name: isos
+          mountPath: /srv/isos
+          readOnly: true

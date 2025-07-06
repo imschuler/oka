@@ -55,6 +55,7 @@
 - name: download Antrea manifest
   uri:
     url: https://github.com/antrea-io/antrea/releases/download/{{ antrea }}/antrea.yml 
+    dest: /home/ansible
   become: false
   environment:
     - https_proxy: "{{ http_proxy.stdout }}"
@@ -63,6 +64,7 @@
 - name: download MetalLb manifest
   uri:
     url: https://raw.githubusercontent.com/metallb/metallb/{{ metallb }}/config/manifests/metallb-native.yaml 
+    dest: /home/ansible
   become: false
   environment:
     - https_proxy: "{{ http_proxy.stdout }}"

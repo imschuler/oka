@@ -95,6 +95,68 @@
     when: suse_activation_key is undefined and smt_server is defined and ansible_facts['distribution'] in [ "SLES", "SLES_SAP" ] 
 
   - block:
+      - name: remove ISO repo
+        command: zypper mr -da
+
+      - name: create /srv/isos2 directory
+        file: 
+          path: /srv/isos2
+          state: directory
+
+      - name: copy ISO file to /srv/isos2
+        copy:
+          src: "{{ isopath }}"
+          dest: /srv/isos2
+        loop: "{{ repos|map(attribute='ins')|replace('file://','',1) }}"
+        loop_control:
+          loop_var: isopath
+
+      - name: create mount points
+        file:
+          path: /srv/isos2/{{ index }}
+          state: directory
+        loop: "{{ repos|map(attribute='ins')|replace('file://','',1) }}"
+
+      - name: mount ISO files
+        mount:
+          path: /srv/isos2/{{ index }}
+          src: /srv/isos2/{{ item }} 
+          opts: ro,loop 
+          state: mounted
+        loop: "{{ repos|map(attribute='ins')|replace('file://','',1)|basename }}"
+
+      - name: find modules
+        find:
+          paths: /srv/isos2
+          patterns: "/Module-.*"
+          use_regex: true 
+          recurse: true
+        register: found_modules
+
+      - debug:
+          var: found_modules
+
+      - name: extract modules 
+        set_fact:
+          modules: >
+            [ {% for mod in found_modules.stdout %}{ "path": "{{ mod }}", "base": "{{ mod|basename|replace('Module-','')|replace('-','_')|lower }}" },{% endfor %} ]
+
+      - debug:
+          var: modules
+
+      - name: create repo
+        template:
+          src: repo.j2
+          dest: /etc/zypp/repos.d/{{ module|map('base') }}.repo
+        loop: "{{ modules }}"
+        loop_control:
+          loop_var: module
+
+      - name:
+        command: "zypper refresh && zypper mr -e basesystem server_applications"
+    when: suse_activation_key is undefined and smt_server is undefined and ansible_facts['distribution'] in [ "SLES", "SLES_SAP" ] 
+
+  - block:
       - name: set HTTP_PROXY in /etc/sysconfig/proxy
         lineinfile:
           regexp: "^HTTP_PROXY"

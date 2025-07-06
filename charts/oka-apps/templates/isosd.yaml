@@ -67,5 +67,6 @@ spec:
         volumeMounts:
         - name: isos
           mountPath: /srv/isos
+          readOnly: true
         - name: dev 
           mountPath: /dev

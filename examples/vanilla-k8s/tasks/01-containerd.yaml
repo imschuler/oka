@@ -11,18 +11,23 @@
   shell: grep ^VERSION_ID /etc/os-release | sed s'/VERSION_ID=\([^ ]*\).*/\1/' | tr -d '"'
   register: sles_id
 
+- name: check for SLES or SLES 4 SAP
+  assert:
+    that: ansible_facts['distribution'] in [ "SLES", "SLES_SAP" ]
+
 - name: two styles for arch variable
   set_fact:
     arch2: "{% if arch == 'amd64' %}x86_64{% else %}aarch64{% endif %}"
 
 - name: activate channels
-  command: SUSEConnect -p {{ mod }}
-  loop:
-  - sle-module-containers/{{ sles_id.stdout }}/{{ arch2 }}
-  loop_control:
-    loop_var: mod 
+  command: SUSEConnect -p sle-module-containers/{{ sles_id.stdout }}/{{ arch2 }} 
   environment:
   - https_proxy: "{{ https_proxy.stdout }}"
+  when: suse_activation_key is defined or smt_server is defined
+
+- name: enable container repo 
+  command: zypper mr -a containers 
+  when: suse_activation_key is undefined and smt_server is undefined
 
 - name: install containerd
   zypper:

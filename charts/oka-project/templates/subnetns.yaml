@@ -5,4 +5,4 @@ metadata:
   labels:
     app.kubernetes.io/name: oka
 data:
-  subnetns: {{ .Values.subnetns }}
+  subnetns: {{ .Values.subnet }}

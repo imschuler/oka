@@ -113,17 +113,22 @@
 
       - name: create mount points
         file:
-          path: /srv/isos2/{{ index }}
+          path: /srv/isos2/{{ isoindex }}
           state: directory
         loop: "{{ repos|map(attribute='ins')|replace('file://','',1) }}"
+        loop_control:
+          index_var: isoindex
 
       - name: mount ISO files
         mount:
-          path: /srv/isos2/{{ index }}
-          src: /srv/isos2/{{ item }} 
+          path: /srv/isos2/{{ iso2index }}
+          src: /srv/isos2/{{ iso2item }} 
           opts: ro,loop 
           state: mounted
         loop: "{{ repos|map(attribute='ins')|replace('file://','',1)|basename }}"
+        loop_control:
+          loop_var: iso2item
+          index_var: iso2index
 
       - name: find modules
         find:

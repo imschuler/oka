@@ -26,7 +26,7 @@
   when: suse_activation_key is defined or smt_server is defined
 
 - name: enable container repo 
-  command: zypper mr -a containers 
+  shell: zypper mr -e containers 
   when: suse_activation_key is undefined and smt_server is undefined
 
 - name: install containerd

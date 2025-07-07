@@ -164,8 +164,8 @@
         loop_control:
           loop_var: mod
 
-      - name:
-        command: "zypper refresh && zypper mr -e basesystem server_applications"
+      - name: enable basesystem and server applications repos
+        shell: "zypper mr -e basesystem server_applications"
     when: suse_activation_key is undefined and smt_server is undefined and ansible_facts['distribution'] in [ "SLES", "SLES_SAP" ] 
 
   - block:

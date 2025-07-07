@@ -3,6 +3,15 @@
   shell: grep ^HTTPS_PROXY /etc/sysconfig/proxy | sed s'/HTTPS_PROXY=\([^ ]*\).*/\1/' | tr -d '"'
   register: https_proxy
 
+- name: get architecture
+  shell: uname -m
+  register: varch
+
+- name: two styles for arch variable
+  set_fact:
+    arch: "{% if varch.stdout == 'x86_64' %}amd64{% else %}arm64{% endif %}"
+    arch2: "{% if varch.stdout == 'x86_64' %}x86_64{% else %}aarch64{% endif %}"
+
 - name: get kubernetes version
   command: curl -sSL https://dl.k8s.io/release/stable.txt
   environment:
@@ -10,7 +19,7 @@
   register: stable
 
 - set_fact:
-    kubevers: "{% if kubevers is defined %}{{ kubevers }}{% else %}{{ stable.stdout }}{% endif %}"
+    kubevers: "{% if kubevers is defined and kubevers|length %}{{ kubevers }}{% else %}{{ stable.stdout }}{% endif %}"
 
 - debug:
     var: kubevers

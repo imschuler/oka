@@ -15,19 +15,25 @@
   assert:
     that: ansible_facts['distribution'] in [ "SLES", "SLES_SAP" ]
 
+- name: get architecture
+  shell: uname -m
+  register: varch
+
 - name: two styles for arch variable
   set_fact:
-    arch2: "{% if arch == 'amd64' %}x86_64{% else %}aarch64{% endif %}"
+    arch: "{% if varch.stdout == 'x86_64' %}amd64{% else %}arm64{% endif %}"
+    arch2: "{% if varch.stdout == 'x86_64' %}x86_64{% else %}aarch64{% endif %}"
+
+- name: check whether containers repo may be enabled 
+  shell: zypper mr -e containers 
+  register: containers
+  ignore_errors: true
 
 - name: activate channels
   command: SUSEConnect -p sle-module-containers/{{ sles_id.stdout }}/{{ arch2 }} 
   environment:
   - https_proxy: "{{ https_proxy.stdout }}"
-  when: suse_activation_key is defined or smt_server is defined
-
-- name: enable container repo 
-  shell: zypper mr -e containers 
-  when: suse_activation_key is undefined and smt_server is undefined
+  when: containers.rc != 0
 
 - name: install containerd
   zypper:

@@ -1,11 +1,11 @@
 cni_version: v1.3.0
 crictl_version: v1.31.0
 kubelet_service_version: v0.16.2
-# amd64 or arm64
-arch: amd64 
 reboot_timeout: 240
+# optional Kubernetes Version
+# kubevers=v1.33.2
 # optional NTP server
-ntp_server: de.pool.ntp.org
+ntp_server: de.pool.ntp.org 
 # optional Antrea/MetalLb mainfest download
 antrea: v2.3.1
 metallb: v0.15.2

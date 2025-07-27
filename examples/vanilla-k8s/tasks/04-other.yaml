@@ -11,6 +11,15 @@
   shell: grep ^VERSION_ID /etc/os-release | sed s'/VERSION_ID=\([^ ]*\).*/\1/' | tr -d '"'
   register: sles_id
 
+- name: get architecture
+  shell: uname -m
+  register: varch
+
+- name: two styles for arch variable
+  set_fact:
+    arch: "{% if varch.stdout == 'x86_64' %}amd64{% else %}arm64{% endif %}"
+    arch2: "{% if varch.stdout == 'x86_64' %}x86_64{% else %}aarch64{% endif %}"
+
 - name: install further packages
   zypper:
     name: "{{ item }}"
@@ -69,3 +78,21 @@
   environment:
     - https_proxy: "{{ http_proxy.stdout }}"
   when: metallb is defined and metallb|length 
+
+- name: download Cilium CLI
+  uri:
+    url: https://github.com/cilium/cilium-cli/releases/download/{{ cilium }}/cilium-linux-{{ arch }}.tar.gz
+    dest: /home/ansible
+  become: false
+  environment:
+    - https_proxy: "{{ http_proxy.stdout }}"
+  when: cilium is defined and cilium|length
+
+- name: download Hubble CLI
+  uri:
+    url: https://github.com/cilium/hubble/releases/download/{{ hubble }}/hubble-linux-{{ arch }}.tar.gz
+    dest: /home/ansible
+  become: false
+  environment:
+    - https_proxy: "{{ http_proxy.stdout }}"
+  when: hubble is defined and hubble|length

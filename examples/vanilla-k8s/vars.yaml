@@ -6,6 +6,8 @@ reboot_timeout: 240
 # kubevers=v1.33.2
 # optional NTP server
 ntp_server: de.pool.ntp.org 
-# optional Antrea/MetalLb mainfest download
-antrea: v2.3.1
+# optional Antrea/MetalLbCilium/Hubble manifest download
+# antrea: v2.3.1
 metallb: v0.15.2
+cilium: v0.18.5
+hubble: v1.17.5

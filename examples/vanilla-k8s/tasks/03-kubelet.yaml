@@ -68,6 +68,13 @@
     regexp: " swap "
     state: absent
 
+- name: update to the latest software
+  zypper:
+    name: "*"
+    state: latest
+  environment:
+    - http_proxy: "{{ https_proxy.stdout }}"
+
 - name: reboot
   reboot:
     pre_reboot_delay: 60

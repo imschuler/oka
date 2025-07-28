@@ -80,19 +80,19 @@
   when: metallb is defined and metallb|length 
 
 - name: download Cilium CLI
-  uri:
-    url: https://github.com/cilium/cilium-cli/releases/download/{{ cilium }}/cilium-linux-{{ arch }}.tar.gz
-    dest: /home/ansible
-  become: false
-  environment:
-    - https_proxy: "{{ http_proxy.stdout }}"
-  when: cilium is defined and cilium|length
+  uri:
+    url: https://github.com/cilium/cilium-cli/releases/download/{{ cilium }}/cilium-linux-{{ arch }}.tar.gz
+    dest: /home/ansible
+  become: false
+  environment:
+    - https_proxy: "{{ http_proxy.stdout }}"
+  when: cilium is defined and cilium|length
 
 - name: download Hubble CLI
-  uri:
-    url: https://github.com/cilium/hubble/releases/download/{{ hubble }}/hubble-linux-{{ arch }}.tar.gz
-    dest: /home/ansible
-  become: false
-  environment:
-    - https_proxy: "{{ http_proxy.stdout }}"
-  when: hubble is defined and hubble|length
+  uri:
+    url: https://github.com/cilium/hubble/releases/download/{{ hubble }}/hubble-linux-{{ arch }}.tar.gz
+    dest: /home/ansible
+  become: false
+  environment:
+    - https_proxy: "{{ http_proxy.stdout }}"
+  when: hubble is defined and hubble|length

@@ -86,7 +86,7 @@
     when: suse_activation_key is defined and ansible_facts['distribution'] in [ "SLES", "SLES_SAP" ] 
 
   - name: switch openSUSE Leap Repo
-    shell: zypper mr -d 1 && zypper ar https://download.opensuse.org/distribution/leap/{{ osvers.stdout }}/repo/oss/ openSUSE-Leap-{{ osvers.stdout }} 
+    shell: zypper mr -d 1 && zypper ar -g -f http://download.opensuse.org/distribution/leap/{{ osvers.stdout }}/repo/oss/ openSUSE-Leap-{{ osvers.stdout }} 
     when: ansible_facts['distribution'] in [ "openSUSE Leap" ] 
 
   - block:

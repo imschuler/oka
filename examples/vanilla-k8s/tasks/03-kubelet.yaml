@@ -3,6 +3,10 @@
   shell: grep ^HTTPS_PROXY /etc/sysconfig/proxy | sed s'/HTTPS_PROXY=\([^ ]*\).*/\1/' | tr -d '"'
   register: https_proxy
 
+- name: get http_proxy
+  shell: grep ^HTTP_PROXY /etc/sysconfig/proxy | sed s'/HTTP_PROXY=\([^ ]*\).*/\1/' | tr -d '"'
+  register: http_proxy
+
 - name: get architecture
   shell: uname -m
   register: varch
@@ -73,7 +77,7 @@
     name: "*"
     state: latest
   environment:
-    - http_proxy: "{{ https_proxy.stdout }}"
+    - http_proxy: "{{ http_proxy.stdout }}"
 
 - name: reboot
   reboot:

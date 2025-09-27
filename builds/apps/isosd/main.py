@@ -58,7 +58,7 @@ async def create_base(install_id: str, request: Request):
             if repo["add"] != None or repo["ins"] != None:
                 if url.startswith("file://"):
                     dir = url[len("file://"):]
-                    os.system("mount -o ro,loop,norock " + dir + " " + BASE_DIR + install_id + repostr) 
+                    os.system("mount -o ro,loop " + dir + " " + BASE_DIR + install_id + repostr) 
                 elif url.startswith("nfs://"):
                     dir = url[len("nfs://"):]
                     os.system("mount -t nfs -o ro " + dir + " " + BASE_DIR + install_id + repostr) 

@@ -11,9 +11,13 @@
   shell: grep ^VERSION_ID /etc/os-release | sed s'/VERSION_ID=\([^ ]*\).*/\1/' | tr -d '"'
   register: sles_id
 
-- name: check for SLES or SLES 4 SAP
+- name: print distro
+  debug:
+    var: ansible_facts['distribution']
+
+- name: check for SLES or SLES 4 SAP or Leap
   assert:
-    that: ansible_facts['distribution'] in [ "SLES", "SLES_SAP" ]
+    that: ansible_facts['distribution'] in [ "SLES", "SLES_SAP", "openSUSE Leap" ]
 
 - name: get architecture
   shell: uname -m
@@ -24,16 +28,17 @@
     arch: "{% if varch.stdout == 'x86_64' %}amd64{% else %}arm64{% endif %}"
     arch2: "{% if varch.stdout == 'x86_64' %}x86_64{% else %}aarch64{% endif %}"
 
-- name: check whether containers repo may be enabled 
-  shell: zypper mr -e containers 
-  register: containers
-  ignore_errors: true
+- name: make sure container repo is enabled unless it is Leap
+  block:
+  - shell: zypper mr -e containers 
+    register: containers
+    ignore_errors: true
 
-- name: activate channels
-  command: SUSEConnect -p sle-module-containers/{{ sles_id.stdout }}/{{ arch2 }} 
-  environment:
-  - https_proxy: "{{ https_proxy.stdout }}"
-  when: containers.rc != 0
+  - command: SUSEConnect -p sle-module-containers/{{ sles_id.stdout }}/{{ arch2 }} 
+    environment:
+    - https_proxy: "{{ https_proxy.stdout }}"
+    when: containers.rc != 0
+  when: ansible_facts['distribution'] in [ "SLES", "SLES_SAP" ]
 
 - name: install containerd
   zypper:

@@ -3,11 +3,11 @@ crictl_version: v1.31.0
 kubelet_service_version: v0.16.2
 reboot_timeout: 240
 # optional Kubernetes Version
-# kubevers=v1.33.2
+kubevers: v1.34.0
 # optional NTP server
-ntp_server: de.pool.ntp.org 
+ntp_server: 192.168.178.1 
 # optional Antrea/MetalLbCilium/Hubble manifest download
 # antrea: v2.3.1
 metallb: v0.15.2
-cilium: v0.18.5
-hubble: v1.17.5
+cilium: v0.18.7
+hubble: v1.18.0

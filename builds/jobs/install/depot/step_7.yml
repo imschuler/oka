@@ -174,7 +174,7 @@
 
       - name: enable basesystem and server applications repos
         shell: "zypper mr -e basesystem server_applications"
-    when: suse_activation_key is undefined and smt_server is undefined and ansible_facts['distribution'] in [ "SLES", "SLES_SAP" ] 
+    when: copy_iso is defined and suse_activation_key is undefined and smt_server is undefined and ansible_facts['distribution'] in [ "SLES", "SLES_SAP" ] 
 
   - block:
       - name: set HTTP_PROXY in /etc/sysconfig/proxy

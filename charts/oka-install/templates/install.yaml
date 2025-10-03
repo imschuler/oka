@@ -19,6 +19,9 @@ data:
     {{- if .redhat_pool_id }}
     redhat_pool_id:       {{ .redhat_pool_id }}
     {{- end }}
+    {{- if .copy_iso  }}
+    copy_iso:             {{ .copy_iso }}
+    {{- end }}
   {{- end }}
 ---
 apiVersion: v1

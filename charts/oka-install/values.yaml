@@ -10,3 +10,6 @@ suse_activation_key:
 
 # optional Pool ID
 redhat_pool_id:
+
+# optional
+copy_iso:

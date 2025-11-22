@@ -11,3 +11,5 @@ ntp_server: 192.168.178.1
 metallb: v0.15.2
 cilium: v0.18.7
 hubble: v1.18.0
+service_cidr: 10.43.0.0/16
+cluster_name: cluster0

@@ -1,0 +1,12 @@
+apiVersion: kubeadm.k8s.io/v1beta4
+kind: JoinConfiguration
+nodeRegistration:
+  kubeletExtraArgs:
+    - name: noode-ip
+      value: 192.168.21.202
+discovery:
+  bootstrapToken:
+    apiServerEndpoint: 192.168.21.201:6443
+    token: 1y5j93.me9vsm13g6tlk6ya 
+    unsafeSkipCAVerification: true
+    

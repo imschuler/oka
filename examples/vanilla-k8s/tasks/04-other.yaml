@@ -96,3 +96,19 @@
   environment:
     - https_proxy: "{{ http_proxy.stdout }}"
   when: hubble is defined and hubble|length
+
+- name: generate InitConfiguration and ClusterConfiguration for kubeadm
+  template:
+    src: kubeadm-init.j2
+    dest: /root/kubeadm-init.yaml
+    owner: root
+    group: root
+    mode: 0644
+
+- name: generate JoinConfiguration for kubeadm
+  template:
+    src: kubeadm-join.j2
+    dest: /root/kubeadm-join.yaml
+    owner: root
+    group: root
+    mode: 0644

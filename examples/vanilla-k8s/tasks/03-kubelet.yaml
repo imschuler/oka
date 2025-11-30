@@ -78,6 +78,7 @@
     state: latest
   environment:
     - http_proxy: "{{ http_proxy.stdout }}"
+    - https_proxy: "{{ https_proxy.stdout }}"
 
 - name: reboot
   reboot:
